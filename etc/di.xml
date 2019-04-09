@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+/**
+ *
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <!-- WEB API -->
+    <preference for="Develodesign\Easymanage\Api\ExportProductsInterface"
+                type="Develodesign\Easymanage\Model\ExportProducts" />
+    <preference for="Develodesign\Easymanage\Api\SaveProductsInterface"
+                type="Develodesign\Easymanage\Model\SaveProducts" />
+    <preference for="Develodesign\Easymanage\Api\RevisionProductsInterface"
+                type="Develodesign\Easymanage\Model\RevisionProducts" />
+    <preference for="Develodesign\Easymanage\Api\PingInterface"
+                type="Develodesign\Easymanage\Model\Ping" />
+</config>

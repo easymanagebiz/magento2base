@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
+    <route url="/V1/easymanage/exportproducts" method="POST">
+        <service class="Develodesign\Easymanage\Api\ExportProductsInterface" method="export"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/search" method="POST">
+        <service class="Develodesign\Easymanage\Api\ExportProductsInterface" method="search"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/save" method="POST">
+        <service class="Develodesign\Easymanage\Api\SaveProductsInterface" method="save"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/process" method="POST">
+        <service class="Develodesign\Easymanage\Api\SaveProductsInterface" method="process"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/allrevisions" method="POST">
+        <service class="Develodesign\Easymanage\Api\RevisionProductsInterface" method="allrevisions"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+            
+        </resources>
+    </route>
+    <route url="/V1/easymanage/revision" method="POST">
+        <service class="Develodesign\Easymanage\Api\RevisionProductsInterface" method="revision"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/loadrevision" method="POST">
+        <service class="Develodesign\Easymanage\Api\RevisionProductsInterface" method="loadrevision"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+
+    <route url="/V1/easymanage/ping" method="GET">
+        <service class="Develodesign\Easymanage\Api\PingInterface" method="ping"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+</routes>
