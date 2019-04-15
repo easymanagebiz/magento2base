@@ -1,4 +1,4 @@
-# magento2-sheet
+# magento2base
 
 Magento 2 module for Easymanage app
 
