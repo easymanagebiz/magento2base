@@ -1,4 +1,4 @@
-# magento2-sheet
+# magento2base
 
 Magento 2 module for Easymanage app
 
@@ -20,17 +20,20 @@ You need to run Magento setup commands from project root directory.(SSH access r
 <br>
 <br>
 Our support <a href="https://easymanage.biz/index.php/forum/" target="_blank">forum</a>
-
+<br>
+<br>
 <h3>Setup Google Sheet add-onn</h3>
 <br>
 Open Google Spreadsheet -> Menu -> Add-ons -> Get Add-ins
 <div style="text-align:center">
 <img src="https://easymanage.biz/wp-content/uploads/2019/04/get-addon.png" />
 </div>
+<br>
 In search field type "Easymanage", find add-on and press "+ Free" button
 <div style="text-align:center">
 <img src="https://easymanage.biz/wp-content/uploads/2019/04/get-addon-2.png" />
 </div>
 Go through OAuth process, and you are done.
+<br>
 <br>
 More info about <a href="https://easymanage.biz/index.php/magento-2/" target="_blank">here</a>
