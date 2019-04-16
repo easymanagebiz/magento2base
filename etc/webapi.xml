@@ -15,6 +15,18 @@
 
         </resources>
     </route>
+    <route url="/V1/easymanage/exportcustomers" method="POST">
+        <service class="Develodesign\Easymanage\Api\ExportCustomersInterface" method="export"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+    <route url="/V1/easymanage/searchcustomers" method="POST">
+        <service class="Develodesign\Easymanage\Api\ExportCustomersInterface" method="search"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
     <route url="/V1/easymanage/save" method="POST">
         <service class="Develodesign\Easymanage\Api\SaveProductsInterface" method="save"/>
         <resources>
@@ -33,7 +45,7 @@
         <service class="Develodesign\Easymanage\Api\RevisionProductsInterface" method="allrevisions"/>
         <resources>
             <resource ref="Magento_Catalog::catalog"/>
-            
+
         </resources>
     </route>
     <route url="/V1/easymanage/revision" method="POST">

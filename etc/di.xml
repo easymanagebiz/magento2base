@@ -15,4 +15,6 @@
                 type="Develodesign\Easymanage\Model\RevisionProducts" />
     <preference for="Develodesign\Easymanage\Api\PingInterface"
                 type="Develodesign\Easymanage\Model\Ping" />
+    <preference for="Develodesign\Easymanage\Api\ExportCustomersInterface"
+                type="Develodesign\Easymanage\Model\ExportCustomers" />
 </config>
