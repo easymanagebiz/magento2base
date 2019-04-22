@@ -6,6 +6,8 @@ class ExportCustomers implements \Develodesign\Easymanage\Api\ExportCustomersInt
 
   protected  $collectionFactory;
 
+  protected $_customersCollection;
+
   protected $_fieldsToSelectSend = [
     'email' => 'Email',
     'firstname' => 'First Name',
@@ -30,11 +32,13 @@ class ExportCustomers implements \Develodesign\Easymanage\Api\ExportCustomersInt
     $postValues = $this->request->getContent();
     $postValuesArr = \Zend_Json::decode($postValues);
 
+    $dataCustomers = $this->getExportCustomers($postValuesArr);
+
     return [
       'data'=> [
         'postValues' => $postValuesArr,
-        //'totalCount' => $this->_collection->getSize(),
-        //'dataCustomers' => $dataCustomers
+        'totalCount' => $this->_customersCollection->getSize(),
+        'dataCustomers' => $dataCustomers
       ]
     ];
 
@@ -49,20 +53,44 @@ class ExportCustomers implements \Develodesign\Easymanage\Api\ExportCustomersInt
     return [
       'data'=> [
         'postValues' => $postValuesArr,
-        //'totalCount' => $this->_collection->getSize(),
+        'totalCount' => $this->_customersCollection->getSize(),
         'dataCustomers' => $dataCustomers
       ]
     ];
   }
 
+  protected function getExportCustomers($postValuesArr) {
+    $filterParams = ['default filter'];
+    if(empty($postValuesArr)) {
+      return [];
+    }
+    if(!empty($postValuesArr['params'])) {
+      $str = parse_str($postValuesArr['params'], $filterParams);
+    }
+    $this->_customersCollection = $this->getCustomersCollection( $postValuesArr );
+    if(!empty($filterParams['customer_id_from'])) {
+      $this->_customersCollection
+        ->addAttributeToFilter('entity_id', array('gt' => intval($filterParams['customer_id_from'])));
+    }
+    if(!empty($filterParams['customer_id_to'])) {
+      $this->_customersCollection
+        ->addAttributeToFilter('entity_id', array('lteq' => intval($filterParams['customer_id_to'])));
+
+    }
+    if(!empty($filterParams['registrated_from-data'])) {
+      $date = date('Y-m-d 00:00:00', intval($filterParams['registrated_from-data']));
+      $this->_customersCollection
+        ->addAttributeToFilter('created_at', array('gt' => $date));
+
+    }
+    return $this->_helper->collectData($postValuesArr['headers']);
+  }
+
   protected function getSearchCustomers($postValuesArr) {
     $search = !empty($postValuesArr['search']) ? addslashes($postValuesArr['search']) : 'none';
-    $customersCollection = $this->collectionFactory->create();
-    $customersCollection = $this->_helper
-      ->setCollection($customersCollection)
-      ->addFieldsToSelect($postValuesArr['headers']);
+    $this->_customersCollection = $this->getCustomersCollection( $postValuesArr );
 
-    $customersCollection->addAttributeToFilter(
+    $this->_customersCollection->addAttributeToFilter(
           [
            ['attribute' => 'email', 'like' => '%' . $search . '%'],
            ['attribute' => 'firstname', 'like' => '%' . $search . '%'],
@@ -72,10 +100,13 @@ class ExportCustomers implements \Develodesign\Easymanage\Api\ExportCustomersInt
     return $this->_helper->collectData($postValuesArr['headers']);
   }
 
-  protected function prepareCustomerData($customer) {
-    $data = [];
-    foreach($this->_fieldsToSelectSend as $attr => $label) {
+  protected function getCustomersCollection( $postValuesArr ) {
+    $this->_customersCollection = $this->collectionFactory->create();
+    $this->_customersCollection = $this->_helper
+      ->setCollection($this->_customersCollection)
+      ->addFieldsToSelect($postValuesArr['headers']);
 
-    }
+    return  $this->_customersCollection;
   }
+
 }
