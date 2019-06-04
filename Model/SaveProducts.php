@@ -62,17 +62,17 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
     if(!$revisionId) {
       $this->logger->debug('Updater process revision ID not found: ' . $revisionId);
-      return [
+      return [[
           'error' => true
-      ];
+      ]];
     }
 
     $lockData  = $this->readLockFileData($revisionId);
     if(!$lockData) {
       $this->logger->debug('Updater process cant read lockdata for revision ID: ' . $revisionId);
-      return [
+      return [[
           'error' => true
-      ];
+      ]];
     };
 
     $step     = $lockData['step'];
@@ -189,6 +189,9 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     $wokingFolder = $this->getWorkingFolder();
     $lockFileName = $this->getLockingFileName($revisionId);
     $fullPath = $wokingFolder . DIRECTORY_SEPARATOR . $lockFileName;
+    if(!is_file($fullPath)) {
+      return;
+    }
     $file = fopen($fullPath, "r");
     $contents = fread($file, filesize($fullPath));
     fclose($file);

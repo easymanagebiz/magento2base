@@ -70,4 +70,39 @@
 
         </resources>
     </route>
+
+    <route url="/V1/easymanage/mailprocess" method="POST">
+        <service class="Develodesign\Easymanage\Api\MailprocessInterface" method="process"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+
+    <route url="/V1/easymanage/subscriberids" method="POST">
+        <service class="Develodesign\Easymanage\Api\MailprocessInterface" method="subscriberids"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <!-- custom addons -->
+
+    <!-- manage unsubscribers -->
+
+    <route url="/V1/easymanage/exportunsubscribers" method="POST">
+        <service class="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface" method="exportunsubscribers"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <route url="/V1/easymanage/saveunsubscribers" method="POST">
+        <service class="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface" method="saveunsubscribers"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+
 </routes>

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="easymanage_addons_create">
+        <observer name="easymanage.addon.manageunsubscribed" instance="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\Event" />
+        <observer name="easymanage.addon.email.blockshortcode" instance="Develodesign\Easymanage\Model\Addon\Blockshortcode\Event" />
+    </event>
+    <event name="easymanage_after_process_email_content">
+    <observer name="easymanage.addon.email.blockshortcode.process" instance="Develodesign\Easymanage\Model\Addon\Blockshortcode\EventMail" />
+    </event>
+</config>

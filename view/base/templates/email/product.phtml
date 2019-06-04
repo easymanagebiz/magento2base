@@ -1,0 +1,17 @@
+
+<div style="<?php echo $block->getStyles()->getBlockStyles() ?>">
+
+  <h2 style="<?php echo $block->getStyles()->getTitleStyles() ?>"> <?php echo htmlspecialchars($block->getProduct()->getName()) ?> </h2>
+  <?php
+      $imageUrl = $block->getUrl('pub/media/catalog') . 'product' . $block->getProduct()->getImage();
+  ?>
+  <div style="<?php echo $block->getStyles()->getImageContainerStyles() ?>">
+    <img style="<?php echo $block->getStyles()->getImageStyles() ?>" src="<?php echo $imageUrl ?>" />
+  </div>
+  <h3 style="<?php echo $block->getStyles()->getPriceStyles() ?>"><?php echo $block->getPrice() ?></h3>
+  <h5 style="<?php echo $block->getStyles()->getSkuStyles() ?>"><?php echo htmlspecialchars($block->getProduct()->getSku()); ?></h5>
+
+  <div style="clear:both;"><a style="<?php echo $block->getStyles()->getButtonStyles() ?>" href="<?php echo $block->getProduct()->getProductUrl() ?>" class="button">
+      <?php echo __('View') ?>
+  </a></div>
+</div>

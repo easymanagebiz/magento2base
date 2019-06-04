@@ -223,11 +223,11 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       break;
 
       case 'price':
-        return number_format( $value, 2, "." ,"" ) ;
+        return number_format( $value, 2, "," ,"" ) ;
       break;
 
       case 'special_price':
-        return number_format( $value, 2, "." ,"" ) ;
+        return number_format( $value, 2, "," ,"" ) ;
       break;
 
     }

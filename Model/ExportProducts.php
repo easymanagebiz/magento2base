@@ -84,7 +84,7 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
     $this->addStoreFilter($postValuesArr);
     $this->addCategoryIdsFilter($postValuesArr);
 
-    $this->_collection = $this->_helperProducts
+    $this->_helperProducts
       ->setCollection($this->_collection)
       ->addFieldsToSelect($postValuesArr['headers']);
 
@@ -93,15 +93,36 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
   }
 
   protected function addCategoryIdsFilter($postValuesArr) {
-    $categories = !empty($postValuesArr['category']) ? $postValuesArr['category'] : null;
+    $categoriesFilterOld = !empty($postValuesArr['category']) ? $postValuesArr['category'] : null;
+    if(!$categoriesFilterOld) {
+      $filterParams = ['default filter'];
+
+      if(!empty($postValuesArr['params'])) {
+        $str = parse_str($postValuesArr['params'], $filterParams);
+      }
+      $categories = !empty($filterParams['from_categories']) ? $filterParams['from_categories'] : null;
+    }else{
+      $categories = $categoriesFilterOld;
+    }
     if(!$categories || (count($categories) == 1 && $categories[0] == '')) {
       return;
     }
+
     $this->_collection->addCategoriesFilter(['in' => $categories]);
   }
 
   protected function addStoreFilter($postValuesArr) {
-    $store = !empty($postValuesArr['store']) ? $postValuesArr['store'] : null;
+    $storeFilterOld = !empty($postValuesArr['store']) ? $postValuesArr['store'] : null;
+    if(!$storeFilterOld) {
+      $filterParams = ['default filter'];
+
+      if(!empty($postValuesArr['params'])) {
+        $str = parse_str($postValuesArr['params'], $filterParams);
+      }
+      $store = !empty($filterParams['from_stores']) ? $filterParams['from_stores'] : null;
+    }else{
+      $store = $storeFilterOld;
+    }
     if(!$store) {
       return;
     }

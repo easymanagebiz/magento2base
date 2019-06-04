@@ -9,12 +9,20 @@
     <!-- WEB API -->
     <preference for="Develodesign\Easymanage\Api\ExportProductsInterface"
                 type="Develodesign\Easymanage\Model\ExportProducts" />
+    <preference for="Develodesign\Easymanage\Api\ExportCustomersInterface"
+                type="Develodesign\Easymanage\Model\ExportCustomers" />
     <preference for="Develodesign\Easymanage\Api\SaveProductsInterface"
                 type="Develodesign\Easymanage\Model\SaveProducts" />
     <preference for="Develodesign\Easymanage\Api\RevisionProductsInterface"
                 type="Develodesign\Easymanage\Model\RevisionProducts" />
     <preference for="Develodesign\Easymanage\Api\PingInterface"
                 type="Develodesign\Easymanage\Model\Ping" />
-    <preference for="Develodesign\Easymanage\Api\ExportCustomersInterface"
-                type="Develodesign\Easymanage\Model\ExportCustomers" />
+    <preference for="Develodesign\Easymanage\Api\MailprocessInterface"
+                type="Develodesign\Easymanage\Model\Mailprocess" />
+
+    <!-- custom addons -->
+
+    <preference for="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface"
+        type="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\Model" />
+
 </config>
