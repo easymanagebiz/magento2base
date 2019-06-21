@@ -86,6 +86,23 @@
         </resources>
     </route>
 
+    <!-- importer -->
+    <route url="/V1/easymanage/importersave" method="POST">
+        <service class="Develodesign\Easymanage\Api\ImporterInterface" method="save"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/importerprocess" method="POST">
+        <service class="Develodesign\Easymanage\Api\ImporterInterface" method="process"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+
+
     <!-- custom addons -->
 
     <!-- manage unsubscribers -->

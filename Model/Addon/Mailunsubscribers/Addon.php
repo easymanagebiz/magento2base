@@ -86,7 +86,7 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
     return [
       'name' => self::UI_TYPE_BUTTON_SAVE,
       'params' => [
-        'name' => 'export_unsubscribers',
+        'name' => 'save_unsubscribers',
         'type' => self::TABLE_INDEX,
         'label' => __('Update unsubscribed users'),
         'endpoint' => 'endpointSaveUnsubscribers'

@@ -20,6 +20,11 @@
     <preference for="Develodesign\Easymanage\Api\MailprocessInterface"
                 type="Develodesign\Easymanage\Model\Mailprocess" />
 
+    <!-- importer -->
+
+    <preference for="Develodesign\Easymanage\Api\ImporterInterface"
+        type="Develodesign\Easymanage\Model\Importer" />
+
     <!-- custom addons -->
 
     <preference for="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface"

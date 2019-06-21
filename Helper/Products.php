@@ -14,6 +14,8 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
   protected $_specPriceStorage;
 
+  protected $_isInventoryAdded = false;
+
   protected $notAttribute = [
     'qty', 'in_stock'
   ];
@@ -178,6 +180,9 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   protected function addCustomDataToCollection($name) {
     switch($name) {
       case 'qty':
+        if($this->_isInventoryAdded) {
+          return;
+        }
         $this->_collection
           ->joinTable($this->resource->getTableName('cataloginventory_stock_item'),
           'product_id=entity_id',
@@ -186,6 +191,23 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
               'in_stock' => 'is_in_stock'
           ]
         );
+      $this->_isInventoryAdded = true;
+      break;
+
+      case 'in_stock':
+        if($this->_isInventoryAdded) {
+          return;
+        }
+        $this->_collection
+          ->joinTable($this->resource->getTableName('cataloginventory_stock_item'),
+          'product_id=entity_id',
+          [
+              'qty' => 'qty',
+              'in_stock' => 'is_in_stock'
+          ]
+        );
+
+      $this->_isInventoryAdded = true;
       break;
     }
   }
