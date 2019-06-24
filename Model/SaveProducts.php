@@ -6,7 +6,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
   const STEP_CREATE_REVISION = 100;
 
-  const COUNT_TO_SAVE_STEP = 100;
+  const COUNT_TO_SAVE_STEP = 5;
 
   const REINDEX_RUN = 1;
   const REINDEX_COMPLETE = 2;
@@ -119,7 +119,8 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       'total_saved' => $count,
       'total' => $lockData['total'],
       'reindex' => $reindexing,
-      'not_found_sku' => $lockData['not_found_sku']
+      'not_found_sku' => $lockData['not_found_sku'],
+      'errors' => $this->_helperProducts->getErrors()
     ]];
   }
 
@@ -143,6 +144,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       'total_saved' => $totalSaved ? $totalSaved : '0',
       'start_process' => $this->_startNewProcess,
       'total' => count($this->_saveDataRows),
+      'errors' => $this->_helperProducts->getErrors()
       //'saveRows' => $this->_saveDataRows
     ]];
   }

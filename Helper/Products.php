@@ -8,13 +8,18 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   protected $_collection;
   protected $resource;
   protected $_stockRegistry;
-  protected $_productModel;
+
   protected $_productResource;
   protected $_productRepository;
+
+  protected $_attributeHelper;
 
   protected $_specPriceStorage;
 
   protected $_isInventoryAdded = false;
+
+  protected $_errors = [];
+  protected $_errorsAttrCode = [];
 
   protected $notAttribute = [
     'qty', 'in_stock'
@@ -34,13 +39,14 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
   public function __construct(
     \Magento\Framework\App\Helper\Context $context,
-    //\Magento\Catalog\Model\ProductFactory $productModel,
+
     \Magento\Catalog\Api\ProductRepositoryInterface $productRepository,
     \Magento\Catalog\Model\ResourceModel\Product $productResource,
     \Magento\Framework\App\ResourceConnection $resource,
     \Magento\Framework\ObjectManagerInterface $objectManager,
-    \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry
-    //\Magento\Catalog\Model\Product\Price\SpecialPriceStorage $specPriceStorage
+    \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry,
+
+    \Develodesign\Easymanage\Helper\Attributes $attributeHelper
 
   ) {
     $this->resource = $resource;
@@ -48,16 +54,16 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     if(class_exists('\Magento\Catalog\Model\Product\Price\SpecialPriceStorage')) {
       $this->_specPriceStorage = $objectManager->get('\Magento\Catalog\Model\Product\Price\SpecialPriceStorage');
     }
-    //$this->_productModel = $productModel;
+
     $this->_productRepository = $productRepository;
     $this->_productResource = $productResource;
+    $this->_attributeHelper = $attributeHelper;
     parent::__construct($context);
   }
 
   public function updateProduct($sku, $row, $fields) {
     $product = $this->_productRepository->get($sku);
-    //$productModel = $this->_productModel->create();
-    //$product = $productModel->load($productModel->getIdBySku($sku));
+
 
     $numField = 0;
     foreach($fields as $field) {
@@ -87,6 +93,21 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
           }
           $value = null;
         }
+
+        $attribute = $this->_attributeHelper->getAttributeByCode( $name );
+
+        if(!$attribute || !$attribute->getId()) {
+          if(!in_array($name, $this->_errorsAttrCode)) {
+            $this->addError(__('Attribute with code <strong>"%1"</strong> not found', $name));
+            $this->_errorsAttrCode[] = $name;
+          }
+          continue;
+        }
+
+        if($this->_attributeHelper->getIsOptionAttribute($name)) {
+          $value = $this->_attributeHelper->getOptionIdsFromLabels($name, $value);
+        }
+
         $product->setData($name, $value);
         $this->_productResource->saveAttribute($product, $name);
       }
@@ -112,6 +133,14 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       }
       $numField++;
     }
+  }
+
+  protected function addError($errText) {
+    $this->_errors[] = $errText;
+  }
+
+  public function getErrors() {
+    return $this->_errors;
   }
 
   public function specialProcessSaveData($product, $name, $value, $sku) {
@@ -171,6 +200,11 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         $this->addCustomDataToCollection($header['name']);
         continue;
       }
+
+      $attribute = $this->_attributeHelper->getAttributeByCode( $header['name'] );
+      if(!$attribute || !$attribute->getId()) {
+        continue;
+      }
       $this->_collection->addAttributeToSelect($header['name']);
     }
 
@@ -225,6 +259,10 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         $value = $productObj->getData($header['name']);
         if(in_array($header['name'], $this->specialProcessData)) {
           $value = $this->specialProcessData($header['name'], $value);
+        }
+        if($this->_attributeHelper->getIsOptionAttribute($header['name'])) {
+          $row[] = $this->_attributeHelper->getOptionValues($header['name'], $value);
+          continue;
         }
         $row[] = $value;
       }
