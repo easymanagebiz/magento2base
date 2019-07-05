@@ -14,6 +14,10 @@ class Attributes extends \Magento\Framework\App\Helper\AbstractHelper
     'multiselect'
   ];
 
+  protected $_notValidateAttribute = [
+    'status', 'tax_class_id'
+  ];
+
   protected $_loadedAttributes;
 
   protected $_eavConfig;
@@ -39,6 +43,9 @@ class Attributes extends \Magento\Framework\App\Helper\AbstractHelper
   }
 
   public function getIsOptionAttribute($code) {
+    if(in_array($code, $this->_notValidateAttribute)) {
+      return false;
+    }
     $attribute = $this->getAttributeByCode( $code );
     $attributeType = $attribute->getFrontendInput();
     if(in_array($attributeType, $this->_optionAddType)) {

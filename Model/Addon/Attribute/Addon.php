@@ -28,6 +28,7 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
       'class' => 'uicomponent-secondary',
       'icon' => self::ICON_NAME,
       'label' => __('Attribute Updater'),
+      'active_table' => self::TABLE_INDEX,
       'childs' => [
         $this->getTitleSidebar(),
         $this->getSearchInput(),

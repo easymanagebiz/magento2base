@@ -28,6 +28,7 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
       'class' => 'uicomponent-secondary',
       'icon' => self::ICON_NAME,
       'label' => __('Unsubscribed emails'),
+      'active_table' => self::TABLE_INDEX,
       'childs' => [
         $this->getTitleSidebar(),
         $this->getFetchButtonConfig(),
@@ -53,7 +54,15 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
           [
             'name' => 'email',
             'label' => __('Email'),
-            'width' => 200
+            'width' => 200,
+            'validation' => [
+              [
+                'type' => 'required'
+              ],
+              [
+                'type' => 'email'
+              ]
+            ]
           ]
         ],
         'extra' => [

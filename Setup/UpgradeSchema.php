@@ -15,7 +15,7 @@ class UpgradeSchema implements UpgradeSchemaInterface {
         if (version_compare($context->getVersion(), '1.0.2') < 0) {
             $this->createEmailsTables($setup);
         }
-
+        $setup->endSetup();
     }
 
     protected function createEmailsTables($setup) {
