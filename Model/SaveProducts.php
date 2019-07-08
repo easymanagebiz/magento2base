@@ -381,7 +381,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     return $row[0];
   }
 
-  protected function getFolders() {
+  public function getFolders() {
     $revisionFolder = $this->getRevisionFolder();
     if(!$revisionFolder) {
       return [[
@@ -394,7 +394,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     ];
   }
 
-  protected function getRevisionFolder() {
+  public function getRevisionFolder() {
     $filePath = $this->getRevisionFolderPath();
     if (!is_dir($filePath)) {
       try{
@@ -406,7 +406,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     return $filePath;
   }
 
-  protected function getWorkingFolder() {
+  public function getWorkingFolder() {
     $filePath = $this->getWorkingFolderPath();
     if (!is_dir($filePath)) {
       try{
