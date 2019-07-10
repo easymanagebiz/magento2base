@@ -55,98 +55,114 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
   public function process() {
 
-    $postValues   = $this->request->getContent();
-    $data         = \Zend_Json::decode($postValues);
+    try {
+      $postValues   = $this->request->getContent();
+      $data         = \Zend_Json::decode($postValues);
 
-    $revisionId   = !empty($data['revison_id']) ? $data['revison_id'] : null;
+      $revisionId   = !empty($data['revison_id']) ? $data['revison_id'] : null;
 
-    if(!$revisionId) {
-      $this->logger->debug('Updater process revision ID not found: ' . $revisionId);
-      return [[
-          'error' => true
-      ]];
-    }
-
-    $lockData  = $this->readLockFileData($revisionId);
-    if(!$lockData) {
-      $this->logger->debug('Updater process cant read lockdata for revision ID: ' . $revisionId);
-      return [[
-          'error' => true
-      ]];
-    };
-
-    $step     = $lockData['step'];
-    $saveData = $this->readProcessFile($revisionId);
-    $count      = 0;
-    $headers    = [];
-    $totalSaved = 0;
-    foreach ($saveData as $row) {
-      if($count == 0 && count($headers) == 0) {
-        $headers = $row;
-        continue;
+      if(!$revisionId) {
+        $errorMessage = 'Updater process revision ID not found: ' . $revisionId;
+        $this->logger->debug($errorMessage);
+        return [[
+            'error' => $errorMessage
+        ]];
       }
-      if($count < $step) {
+
+      $lockData  = $this->readLockFileData($revisionId);
+      if(!$lockData) {
+        $errorMessage = 'Updater process cant read lockdata for revision ID: ' . $revisionId;
+        $this->logger->debug();
+        return [[
+            'error' => $errorMessage
+        ]];
+      };
+
+      $step     = $lockData['step'];
+      $saveData = $this->readProcessFile($revisionId);
+      $count      = 0;
+      $headers    = [];
+      $totalSaved = 0;
+      foreach ($saveData as $row) {
+        if($count == 0 && count($headers) == 0) {
+          $headers = $row;
+          continue;
+        }
+        if($count < $step) {
+          $count++;
+          continue;
+        }
+        $sku = $this->getProductSkuFromRow($row);
+        $this->_helperProducts->updateProduct($sku, $row, $headers);
+        $totalSaved++;
         $count++;
-        continue;
+        if($totalSaved >= self::COUNT_TO_SAVE_STEP) {
+          break;
+        }
       }
-      $sku = $this->getProductSkuFromRow($row);
-      $this->_helperProducts->updateProduct($sku, $row, $headers);
-      $totalSaved++;
-      $count++;
-      if($totalSaved >= self::COUNT_TO_SAVE_STEP) {
-        break;
+      $lockData['step'] = $count;
+      $this->_revisionId = $revisionId;
+      $reindexing = 0;
+      if($count == $lockData['total'] && empty($lockData['reindex'])) {
+        //reindex data
+        $reindexing = self::REINDEX_RUN;
+        $lockData['reindex'] = true;
+        $this->_helperIndexer->reindexAll();
+        $this->updateLockFile($lockData);
+      }else if($count == $lockData['total'] && !empty($lockData['reindex'])) {
+        $reindexing = self::REINDEX_COMPLETE;
+        $this->removeWorkingFiles($revisionId);
+      }else{
+        $this->updateLockFile($lockData);
       }
-    }
-    $lockData['step'] = $count;
-    $this->_revisionId = $revisionId;
-    $reindexing = 0;
-    if($count == $lockData['total'] && empty($lockData['reindex'])) {
-      //reindex data
-      $reindexing = self::REINDEX_RUN;
-      $lockData['reindex'] = true;
-      $this->_helperIndexer->reindexAll();
-      $this->updateLockFile($lockData);
-    }else if($count == $lockData['total'] && !empty($lockData['reindex'])) {
-      $reindexing = self::REINDEX_COMPLETE;
-      $this->removeWorkingFiles($revisionId);
-    }else{
-      $this->updateLockFile($lockData);
-    }
 
-    return [[
-      'status' => 'ok',
-      'revisionId' => $revisionId,
-      'total_saved' => $count,
-      'total' => $lockData['total'],
-      'reindex' => $reindexing,
-      'not_found_sku' => $lockData['not_found_sku'],
-      'errors' => $this->_helperProducts->getErrors()
-    ]];
+      return [[
+        'status' => 'ok',
+        'revisionId' => $revisionId,
+        'total_saved' => $count,
+        'total' => $lockData['total'],
+        'reindex' => $reindexing,
+        'not_found_sku' => $lockData['not_found_sku'],
+        'log_errors' => $this->_helperProducts->getErrors()
+      ]];
+
+    }catch(Exception $e) {
+      return [[
+          'error' => $errorMessage
+        ]];
+    }
   }
 
   public function save() {
-    $postValues   = $this->request->getContent();
-    $data         = \Zend_Json::decode($postValues);
 
-    $revisionId = $this->createRevisionAndSaveFileData($data);
-    $totalSaved = $this->saveNewData($data['headers']);
+    try {
+      $postValues   = $this->request->getContent();
+      $data         = \Zend_Json::decode($postValues);
 
-    if(!$this->_startNewProcess) {
-      $this->_helperIndexer->reindexAll();
+      $revisionId = $this->createRevisionAndSaveFileData($data);
+      $totalSaved = $this->saveNewData($data['headers']);
+
+      if(!$this->_startNewProcess) {
+        $this->_helperIndexer->reindexAll();
+      }
+
+      return [[
+        'status' => 'ok',
+        'type'   => $data['extra']['type'],
+        'sheet_id' => $data['sheet_id'],
+        'not_found_sku' => $this->_notFoundSkus,
+        'revisionId' => $this->_revisionId,
+        'total_saved' => $totalSaved ? $totalSaved : '0',
+        'start_process' => $this->_startNewProcess,
+        'total' => count($this->_saveDataRows),
+        'log_errors' => $this->_helperProducts->getErrors()
+        //'saveRows' => $this->_saveDataRows
+      ]];
+    }catch(Exception $e) {
+      return [[
+          'error' => $errorMessage
+        ]];
     }
-
-    return [[
-      'status' => 'ok',
-      'type'   => $data['extra']['type'],
-      'sheet_id' => $data['sheet_id'],
-      'not_found_sku' => $this->_notFoundSkus,
-      'revisionId' => $this->_revisionId,
-      'total_saved' => $totalSaved ? $totalSaved : '0',
-      'start_process' => $this->_startNewProcess,
-      'total' => count($this->_saveDataRows),
-      'errors' => $this->_helperProducts->getErrors()
-      //'saveRows' => $this->_saveDataRows
-    ]];
   }
 
   protected function saveNewData($fields) {
@@ -418,7 +434,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     return $filePath;
   }
 
-  protected function getLockingFileName($revisionId) {
+  public function getLockingFileName($revisionId) {
     return self::LOCKING_FILE_NAME . '_' . $revisionId;
   }
 

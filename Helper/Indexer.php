@@ -21,6 +21,16 @@ class Indexer extends \Magento\Framework\App\Helper\AbstractHelper
       'catalogrule_product',
     ];
 
+    protected $_indexesImporter = [
+      'catalog_product_price',
+      'catalogrule_product',
+      'catalog_category_product',
+      'catalog_product_attribute',
+      'catalog_product_category',
+      'cataloginventory_stock',
+      'catalogrule_product',
+    ];
+
     protected $_indexFactory;
 
     public function __construct(
@@ -29,6 +39,14 @@ class Indexer extends \Magento\Framework\App\Helper\AbstractHelper
     ) {
       parent::__construct($context);
       $this->_indexFactory = $indexFactory;
+    }
+
+    public function reindexImporterAll() {
+      foreach ($this->_indexesImporter as $indexerId) {
+          $indexer = $this->_indexFactory->create();
+          $indexer->load($indexerId);
+          $indexer->reindexAll();
+      }
     }
 
     public function reindexAll() {
