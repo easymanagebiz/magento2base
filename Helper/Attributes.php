@@ -11,7 +11,8 @@ class Attributes extends \Magento\Framework\App\Helper\AbstractHelper
 
   protected $_optionAddType = [
     'select',
-    'multiselect'
+    'multiselect',
+    'swatch'
   ];
 
   protected $_notValidateAttribute = [
@@ -80,6 +81,22 @@ class Attributes extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     return implode(self::OPTIONS_DIVIDER, $newOptionsIdsArr);
+  }
+
+  public function getOptionFromLabel($attributeCode, $labelCheck) {
+
+    $attribute = $this->getAttributeByCode($attributeCode);
+    $attrOptions    = $attribute->getSource()->getAllOptions();
+
+    foreach($attrOptions as $optionExists) {
+      if($optionExists['label'] == $labelCheck) {
+        $newOptionsIdsArr[] = (int)$optionExists['value'];
+        return $labelCheck;
+      }
+    }
+
+    $this->addAttributeOption($attributeCode, $labelCheck);
+
   }
 
   protected function addAttributeOption($attributeCode, $label) {

@@ -26,7 +26,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   ];
 
   protected $specialProcessData = [
-    'qty', 'price', 'special_price', 'status'
+    'qty', 'price', 'special_price', 'status', 'tax_class_id'
   ];
 
   protected $notUpdateFields = [
@@ -277,6 +277,9 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     switch($name) {
       case 'status':
         return intval($value) > 0 ? 1 : 0;
+      break;
+      case 'tax_class_id':
+        return intval($value) > 0 ? intval($value) : 0;
       break;
       case 'qty':
         return intval($value);

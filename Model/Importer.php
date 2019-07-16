@@ -22,7 +22,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
   const PRODUCT_DATA_INDEX = 'products';
 
-  const IMPORT_FILE = 'catalog_produdcts';
+  const IMPORT_FILE = 'catalog_products';
 
   const STATUS_BEGIN = 0;
 
@@ -48,6 +48,8 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
   protected $_helperIndexer;
 
+  protected $_helperAttributes;
+
   protected $_headers;
 
   protected $_data;
@@ -65,6 +67,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     \Magento\Framework\Filesystem $fileSystem,
     \Develodesign\Easymanage\Helper\Images $helperImages,
     \Develodesign\Easymanage\Helper\Indexer $helperIndexer,
+    \Develodesign\Easymanage\Helper\Attributes $helperAttributes,
     \Psr\Log\LoggerInterface $logger
   ) {
 
@@ -74,6 +77,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     $this->_fileSystem   = $fileSystem;
     $this->_helperImages  = $helperImages;
     $this->_helperIndexer = $helperIndexer;
+    $this->_helperAttributes = $helperAttributes;
 
     $this->_magentoImportModel = $magentoImportModel;
   }
@@ -214,7 +218,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
         $this->updateLockFile($lockData);
 
         $this->_helperIndexer->reindexImporterAll();
-        
+
 
         return [[
           'status' => 'ok',
@@ -400,6 +404,9 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
       $tmpData = [];
       foreach($rowVal as $indexField => $fieldValue) {
         $fieldValue = $this->processFiledValue($indexField, $fieldValue);
+        if(empty($this->_headers[$indexField])) {
+          continue;
+        }
         $tmpData[$indexField] = $fieldValue;
       }
       $_data[] = $tmpData;
@@ -407,9 +414,58 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     $this->_data = $_data;
 
     $this->_helperImages->fetchImages();
+
+    $errorImages = $this->_helperImages->getErrorImages();
+
+    if(count($errorImages)) {
+      $this->_data = $this->removeErrorImages($this->_data, $errorImages);
+    }
+  }
+
+  protected function removeErrorImages($outPutMainArr, $errorImages)
+  {
+    $newOutput = [];
+    foreach($outPutMainArr as $rowOutput){
+
+      $newRow = [];
+      foreach($rowOutput as $ceil) {
+
+        foreach($errorImages as $key=>$errorImage) {
+
+          if(strstr($ceil, $errorImage) && strstr($ceil, ',')) { //additional images
+            $newCeilArr = [];
+            $arrToCheck = explode(',', $ceil);
+            foreach($arrToCheck as $rowImage) {
+              if($rowImage == $errorImage) {
+                continue;
+              }
+              $newCeilArr[] = $rowImage;
+            }
+            if(count($newCeilArr)) {
+              $ceil = implode(',', $newCeilArr);
+            }else{
+              $ceil = '';
+            }
+
+          } elseif(strstr($ceil, $errorImage)) {
+            $ceil = str_replace($errorImage, '', $ceil);
+          }
+
+        }
+
+        $newRow[] = $ceil;
+      }
+      $newOutput[] = $newRow;
+    }
+
+    return $newOutput;
   }
 
   protected function processFiledValue($indexField, $fieldValue) {
+    if(empty( $this->_headers[$indexField] )) {
+      return;
+    }
+
     $headerKey = $this->_headers[$indexField];
 
     switch($headerKey) {
@@ -426,10 +482,56 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
         return $this->_helperImages->setImage($fieldValue);
       break;
 
+      case 'additional_images':
+        return $this->setAdditonlaImages($fieldValue);
+      break;
+
+      case 'additional_attributes':
+        $this->addNonExistingOptions( $fieldValue );
+        return $fieldValue;
+      break;
+
       default:
         return $fieldValue;
       break;
     }
+  }
+
+  protected function addNonExistingOptions($values) {
+    if(!$values) {
+      return;
+    }
+    $valuesArr = explode(',', $values);
+    if(!count( $valuesArr )) {
+      return;
+    }
+
+    foreach($valuesArr as $_value) {
+      list($attrCode, $attrValue) = explode('=', $_value);
+      $attrValue = trim($attrValue);
+      $attrCode  = trim($attrCode);
+
+      if($this->_helperAttributes->getIsOptionAttribute($attrCode)) {
+        $this->_helperAttributes->getOptionFromLabel($attrCode, $attrValue);
+      }
+    }
+  }
+
+  protected function setAdditonlaImages($images) {
+    if($images == '') {
+      return '';
+    }
+    $outImages = [];
+    $imagesArr = explode(',', $images);
+    foreach($imagesArr as $imgString) {
+      $imgString = trim($imgString);
+      $_image = $this->_helperImages->setImage($imgString);
+      if($_image) {
+        $outImages[] = $_image;
+      }
+    }
+
+    return implode(',', $outImages);
   }
 
   protected function initImagesHelper() {

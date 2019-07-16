@@ -6,7 +6,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
   const STEP_CREATE_REVISION = 100;
 
-  const COUNT_TO_SAVE_STEP = 5;
+  const COUNT_TO_SAVE_STEP = 100;
 
   const REINDEX_RUN = 1;
   const REINDEX_COMPLETE = 2;
