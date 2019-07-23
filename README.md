@@ -1,4 +1,4 @@
-# magento2-sheet
+# magento2base
 
 Magento 2 module for Easymanage app
 
@@ -23,7 +23,7 @@ Our support <a href="https://easymanage.biz/index.php/forum/" target="_blank">fo
 
 <h3>Setup Google Sheet add-onn</h3>
 <br>
-Open Google Spreadsheet -> Menu -> Add-ons -> Get Add-ins
+Open Google Spreadsheet -> Menu -> Add-ons -> Get add-ons
 <div style="text-align:center">
 <img src="https://easymanage.biz/wp-content/uploads/2019/04/get-addon.png" />
 </div>
@@ -36,3 +36,4 @@ Go through OAuth process, and you are done.
 More info about <a href="https://easymanage.biz/index.php/magento-2/" target="_blank">here</a>
 <br>
 Youtube videos - https://www.youtube.com/channel/UCFYmDRJqQU8J6dFUxlRV1zg
+Documentation - https://docs.google.com/document/d/1bf_1nvWxPaqHxyY7iSzZByIzVokrNSzZZPdPeyOMX_g/edit?usp=sharing
