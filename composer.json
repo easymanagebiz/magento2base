@@ -1,9 +1,9 @@
 {
 
             "name": "develodesign/easymanage",
-            "description": "Magento 2 Base Easymange, integrate product management with Google Spreadsheet add-on",
+            "description": "Magento 2 Base Easymange, integrate product management with Google Spreadsheet add-on. Magento to Gmail email sending functionality",
             "type": "magento2-module",
-            "version": "1.0.1",
+            "version": "1.1.9",
             "authors": [
                 {
                     "name": "https://easymanage.biz/",
