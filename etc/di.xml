@@ -20,6 +20,10 @@
     <preference for="Develodesign\Easymanage\Api\MailprocessInterface"
                 type="Develodesign\Easymanage\Model\Mailprocess" />
 
+    <!-- mail template -->
+    <preference for="Develodesign\Easymanage\Api\MailTemplateInterface"
+        type="Develodesign\Easymanage\Model\Mailtemplate" />
+
     <!-- importer -->
 
     <preference for="Develodesign\Easymanage\Api\ImporterInterface"

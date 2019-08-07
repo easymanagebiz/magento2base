@@ -70,6 +70,7 @@
 
         </resources>
     </route>
+    <!-- mail -->
 
     <route url="/V1/easymanage/mailprocess" method="POST">
         <service class="Develodesign\Easymanage\Api\MailprocessInterface" method="process"/>
@@ -78,9 +79,38 @@
         </resources>
     </route>
 
-
     <route url="/V1/easymanage/subscriberids" method="POST">
         <service class="Develodesign\Easymanage\Api\MailprocessInterface" method="subscriberids"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <!-- mail templates -->
+
+    <route url="/V1/easymanage/mailtemplateall" method="GET">
+        <service class="Develodesign\Easymanage\Api\MailTemplateInterface" method="all"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <route url="/V1/easymanage/mailtemplatesave" method="POST">
+        <service class="Develodesign\Easymanage\Api\MailTemplateInterface" method="save"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <route url="/V1/easymanage/mailtemplatedelete" method="POST">
+        <service class="Develodesign\Easymanage\Api\MailTemplateInterface" method="deleteone"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
+    </route>
+
+    <route url="/V1/easymanage/mailtemplateget" method="GET">
+        <service class="Develodesign\Easymanage\Api\MailTemplateInterface" method="getone"/>
         <resources>
             <resource ref="Magento_Catalog::catalog"/>
         </resources>
