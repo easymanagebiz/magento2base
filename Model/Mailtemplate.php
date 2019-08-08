@@ -10,7 +10,7 @@ class Mailtemplate implements \Develodesign\Easymanage\Api\MailTemplateInterface
 
   public function __construct(
       \Magento\Framework\App\Request\Http $request,
-      \Develodesign\Easymanage\Model\EmailTemplate $mailTemplateModel
+      \Develodesign\Easymanage\Model\EmailTemplateFactory $mailTemplateModel
   ) {
     $this->_mailTemplateModel = $mailTemplateModel;
     $this->request = $request;
@@ -23,18 +23,37 @@ class Mailtemplate implements \Develodesign\Easymanage\Api\MailTemplateInterface
     $subject = !empty($data['subject']) ? $data['subject'] : null;
     $content = !empty($data['content']) ? $data['content'] : null;
 
-    if(empty($content) || empty($subject)) {
+    $template_id = !empty($data['template_id']) ? $data['template_id'] : null;
 
+    if(empty($content) || empty($subject)) {
+      return $this->all();
     }
+
+    $model = $this->_mailTemplateModel->create()
+                    ->load( $template_id );
+
+    $model->setEmailSubject($subject);
+    $model->setEmailContent($content);
+
+    $model->save();
+
+    return [[
+      'all' => $this->getListTemplates(),
+      'selected' => $model->getId(),
+      'status' => 'ok'
+    ]];
+
   }
 
   public function all() {
-    return [[
-
-      ]];
+    return [
+      $this->getListTemplates()
+    ];
   }
 
   public function deleteone() {
+    $postValues   = $this->request->getContent();
+    $data         = \Zend_Json::decode($postValues);
 
   }
 
@@ -42,4 +61,20 @@ class Mailtemplate implements \Develodesign\Easymanage\Api\MailTemplateInterface
 
   }
 
+  protected function getListTemplates() {
+    $collection = $this->_mailTemplateModel->create()
+                  ->getCollection();
+    if(!$collection->getSize()) {
+      return [];
+    }
+    $out = [];
+    foreach($collection as $_template) {
+      $out[] = [
+        'label' => $_template->getEmailSubject(),
+        'value' => $_template->getId()
+      ];
+    }
+
+    return $out;
+  }
 }
