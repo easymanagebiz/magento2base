@@ -22,6 +22,9 @@ class Mailprocess implements \Develodesign\Easymanage\Api\MailprocessInterface{
 
   protected $_emailObject;
 
+  protected $_mailTemplateModel;
+
+  protected $_loadedModel;
 
   public $_shortcodes = [
     'product',
@@ -36,8 +39,10 @@ class Mailprocess implements \Develodesign\Easymanage\Api\MailprocessInterface{
     \Develodesign\Easymanage\Model\EmailunsubscriberFactory $modelUnsubscriberEmails,
     \Magento\Framework\App\Request\Http $request,
     \Psr\Log\LoggerInterface $logger,
-    \Magento\Framework\Event\ManagerInterface $eventManager
+    \Magento\Framework\Event\ManagerInterface $eventManager,
+    \Develodesign\Easymanage\Model\EmailTemplateFactory $mailTemplateModel
   ) {
+    $this->_mailTemplateModel = $mailTemplateModel;
     $this->_helperShortcode = $helperShortcode;
     $this->_eventManager = $eventManager;
     $this->_blockEmail   = $blockEmail;
@@ -52,7 +57,7 @@ class Mailprocess implements \Develodesign\Easymanage\Api\MailprocessInterface{
     $postValues    = $this->request->getContent();
     $postValuesArr = \Zend_Json::decode($postValues);
 
-    $emailContent = $this->prepareEmailContent($postValuesArr['email_content']);
+    $emailContent = $this->prepareEmailContent($postValuesArr['email_id']);
     //$emailTo      = $postValuesArr['email_to'];
 
     if(empty($emailContent)) {
@@ -90,6 +95,7 @@ class Mailprocess implements \Develodesign\Easymanage\Api\MailprocessInterface{
     return [[
       'short_codes'    => $this->_emailObject->getShortCodes(),
       'content_email'  => $this->_emailObject->getNewContent(),
+      'subject' => $this->_loadedModel->getEmailSubject(),
       'base_template'  => stripslashes($emailText),
       'unsubscribers' => $this->getUnsubscribersEmails()
     ]];
@@ -134,8 +140,15 @@ class Mailprocess implements \Develodesign\Easymanage\Api\MailprocessInterface{
     return $emailModel;
   }
 
-  protected function prepareEmailContent($text) {
-    $text = str_replace(['\r', '\n', '&quot;'], ['', '', '"'], $text);
+  protected function prepareEmailContent($emailId) {
+    $model = $this->_mailTemplateModel->create();
+    $model->load( $emailId );
+
+    if(!$model->getId()) {
+      return;
+    }
+    $this->_loadedModel = $model;
+    $text = str_replace(['\r', '\n', '&quot;'], ['', '', '"'], $model->getEmailContent());
     return trim(stripslashes(stripslashes($text)), '"');
   }
 

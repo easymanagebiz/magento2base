@@ -52,13 +52,58 @@ class Mailtemplate implements \Develodesign\Easymanage\Api\MailTemplateInterface
   }
 
   public function deleteone() {
-    $postValues   = $this->request->getContent();
-    $data         = \Zend_Json::decode($postValues);
+
+    try {
+      $postValues   = $this->request->getContent();
+      $data         = \Zend_Json::decode($postValues);
+
+      $templateId = !empty($data['template_id']) ? $data['template_id'] : null;
+      if(empty($templateId)) {
+        return $this->all();
+      }
+      $model = $this->_mailTemplateModel->create();
+      $model->load( $templateId );
+
+      if(!$model->getId()) {
+        return $this->all();
+      }
+
+      $model->delete();
+
+      return [[
+        'all' => $this->getListTemplates(),
+        'status' => 'ok'
+      ]];
+
+    }catch(Exception $e) {
+      return [[
+        'error' => $e->getMessage()
+      ]];
+    }
 
   }
 
   public function getone() {
+    $postValues   = $this->request->getContent();
+    $data         = \Zend_Json::decode($postValues);
 
+    $templateId = !empty($data['template_id']) ? $data['template_id'] : null;
+    if(empty($templateId)) {
+      return $this->all();
+    }
+    $model = $this->_mailTemplateModel->create()
+                    ->load( $templateId );
+
+    if(!$model->getId()) {
+      return $this->all();
+    }
+    return [[
+      'all' => $this->getListTemplates(),
+      'selected' => $model->getId(),
+      'template_code' => $model->getEmailContent(),
+      'subject' => $model->getEmailSubject(),
+      'status' => 'ok'
+    ]];
   }
 
   protected function getListTemplates() {
