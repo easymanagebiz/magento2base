@@ -9,16 +9,20 @@ class Index extends \Magento\Framework\App\Action\Action
 
     protected $_modelUnsubscriberEmails;
 
+    protected $resultRawFactory;
+
     public function __construct(
         \Magento\Framework\App\Action\Context $context,
         \Develodesign\Easymanage\Model\Email $modelEmails,
-        \Develodesign\Easymanage\Model\Emailunsubscriber $modelUnsubscriberEmails
+        \Develodesign\Easymanage\Model\Emailunsubscriber $modelUnsubscriberEmails,
+        \Magento\Framework\Controller\Result\RawFactory $resultRawFactory
 
     )
     {
 
         $this->_modelUnsubscriberEmails = $modelUnsubscriberEmails;
         $this->_modelEmails = $modelEmails;
+        $this->resultRawFactory    = $resultRawFactory;
         parent::__construct($context);
     }
 
@@ -40,6 +44,7 @@ class Index extends \Magento\Framework\App\Action\Action
         $modelEmailUnsubscriber->save();
       }
 
+      $result = $this->resultRawFactory->create();
       $redirectUrl = $this->_url->getUrl('/');
 
       $text = '<html><body><div style="text-align:center">';
@@ -57,7 +62,10 @@ class Index extends \Magento\Framework\App\Action\Action
 
       $text .= '</div></body></html>';
 
-      echo $text;
+      $result->setContents($text);
+
+      return $result;
+
     }
 
 }

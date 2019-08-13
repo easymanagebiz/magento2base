@@ -181,7 +181,7 @@ class Images extends \Magento\Framework\App\Helper\AbstractHelper{
   }
 
   protected function getUniqueId() {
-    return md5(uniqid(rand(), true));
+    return uniqid(rand(), true);
   }
 
   protected function getExtension($image) {

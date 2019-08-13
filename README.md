@@ -36,4 +36,5 @@ Go through OAuth process, and you are done.
 More info about <a href="https://easymanage.biz/index.php/magento-2/" target="_blank">here</a>
 <br>
 Youtube videos - https://www.youtube.com/channel/UCFYmDRJqQU8J6dFUxlRV1zg
+<br>
 Documentation - https://docs.google.com/document/d/1bf_1nvWxPaqHxyY7iSzZByIzVokrNSzZZPdPeyOMX_g/edit?usp=sharing
