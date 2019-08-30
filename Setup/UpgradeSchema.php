@@ -32,7 +32,7 @@ class UpgradeSchema implements UpgradeSchemaInterface {
                     'email_subject', \Magento\Framework\DB\Ddl\Table::TYPE_TEXT, null, ['default' => null, 'nullable' => true], 'Email subject'
             )
             ->addColumn(
-                    'email_content', \Magento\Framework\DB\Ddl\Table::TYPE_TEXT, null, ['default' => null, 'nullable' => true], 'Email content'
+                    'email_content', \Magento\Framework\DB\Ddl\Table::TYPE_TEXT, '2M', ['default' => null, 'nullable' => true], 'Email content'
             )
       ;
       $setup->getConnection()->createTable($easymanage_email_temaples);
