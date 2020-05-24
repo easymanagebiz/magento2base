@@ -1,8 +1,8 @@
 <?php
 
-namespace Develodesign\Easymanage\Model\Addon\Mailunsubscribers;
+namespace Develodesign\Easymanage\Api;
 
-interface ApiInterface {
+interface MailunsubscribersInterface {
 
     /**
      * Export usubscribers as json

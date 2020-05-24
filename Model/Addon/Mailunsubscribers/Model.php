@@ -3,7 +3,7 @@
 
 namespace Develodesign\Easymanage\Model\Addon\Mailunsubscribers;
 
-class Model implements \Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface{
+class Model implements \Develodesign\Easymanage\Api\MailunsubscribersInterface{
 
   protected $_unsubscriberModel;
 

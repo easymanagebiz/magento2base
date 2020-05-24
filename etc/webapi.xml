@@ -138,14 +138,14 @@
     <!-- manage unsubscribers -->
 
     <route url="/V1/easymanage/exportunsubscribers" method="POST">
-        <service class="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface" method="exportunsubscribers"/>
+        <service class="Develodesign\Easymanage\Api\MailunsubscribersInterface" method="exportunsubscribers"/>
         <resources>
             <resource ref="Magento_Catalog::catalog"/>
         </resources>
     </route>
 
     <route url="/V1/easymanage/saveunsubscribers" method="POST">
-        <service class="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface" method="saveunsubscribers"/>
+        <service class="Develodesign\Easymanage\Api\MailunsubscribersInterface" method="saveunsubscribers"/>
         <resources>
             <resource ref="Magento_Catalog::catalog"/>
         </resources>

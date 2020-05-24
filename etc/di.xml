@@ -31,7 +31,7 @@
 
     <!-- custom addons -->
 
-    <preference for="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\ApiInterface"
+    <preference for="Develodesign\Easymanage\Api\MailunsubscribersInterface"
         type="Develodesign\Easymanage\Model\Addon\Mailunsubscribers\Model" />
 
 </config>

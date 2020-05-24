@@ -290,6 +290,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       break;
 
       case 'special_price':
+        $value = $value ? $value : 0;
         return number_format( $value, 2, "." ,"" ) ;
       break;
 
