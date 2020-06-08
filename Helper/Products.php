@@ -149,11 +149,11 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       case 'special_price':
         $updateArr = $this->_specPriceStorage->get([$sku]);
         if(empty($updateArr) || empty($updateArr[0])) {
-          continue;
+          return;
         }
         $updateObj = $updateArr[0];
         if($updateObj->getSku() != $sku) {
-          continue;
+          return;
         }
         $updateObj->setPrice( $value );
         $this->_specPriceStorage->delete([$updateObj]);
