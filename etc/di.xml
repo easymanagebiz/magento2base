@@ -29,6 +29,11 @@
     <preference for="Develodesign\Easymanage\Api\ImporterInterface"
         type="Develodesign\Easymanage\Model\Importer" />
 
+
+    <!-- test -->
+    <preference for="Develodesign\Easymanage\Api\TestInterface"
+        type="Develodesign\Easymanage\Model\Test" />
+
     <!-- custom addons -->
 
     <preference for="Develodesign\Easymanage\Api\MailunsubscribersInterface"

@@ -132,6 +132,15 @@
         </resources>
     </route>
 
+    <!--
+        test func
+        show is module installed and enebled
+        url accessible by all
+    -->
+
+    <route url="/V1/easymanage/test" method="GET">
+        <service class="Develodesign\Easymanage\Api\TestInterface" method="test"/>
+    </route>
 
     <!-- custom addons -->
 
