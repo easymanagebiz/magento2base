@@ -23,9 +23,11 @@ class Ping implements \Develodesign\Easymanage\Api\PingInterface{
     $this->_addons = new \Magento\Framework\DataObject();
     $this->_addons->setAddons([]);
 
-    $this->_eventManager->dispatch('easymanage_addons_create', [
-      'addons' => $this->_addons
-    ]);
+    if($this->_helper->getIsAddonEnebled()) {
+      $this->_eventManager->dispatch('easymanage_addons_create', [
+        'addons' => $this->_addons
+      ]);
+    }
 
     return [[
       'status'  => 'ok',

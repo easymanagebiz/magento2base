@@ -4,7 +4,7 @@ namespace Develodesign\Easymanage\Model\Addon\Mailunsubscribers;
 
 class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
 
-  const PARENT_UI_COMPONENET = 'mailsidebar_menu';
+  const PARENT_UI_COMPONENET = 'menu_customers';
 
   const ICON_NAME    = 'user_remove';
   const TABLE_INDEX  = 'unsubscribers_mails';
@@ -29,6 +29,7 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
       'icon' => self::ICON_NAME,
       'label' => __('Unsubscribed emails'),
       'active_table' => self::TABLE_INDEX,
+      'quick_menu' => true,
       'childs' => [
         $this->getTitleSidebar(),
         $this->getFetchButtonConfig(),

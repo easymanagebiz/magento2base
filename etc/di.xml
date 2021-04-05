@@ -29,10 +29,13 @@
     <preference for="Develodesign\Easymanage\Api\ImporterInterface"
         type="Develodesign\Easymanage\Model\Importer" />
 
+    <!-- triggers -->
+    <preference for="Develodesign\Easymanage\Api\TriggerInterface"
+      type="Develodesign\Easymanage\Model\Trigger" />
 
     <!-- test -->
     <preference for="Develodesign\Easymanage\Api\TestInterface"
-        type="Develodesign\Easymanage\Model\Test" />
+      type="Develodesign\Easymanage\Model\Test" />
 
     <!-- custom addons -->
 

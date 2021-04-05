@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © 2021
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="develo_extensions" translate="label" sortOrder="500">
+            <label>Develo Extensions</label>
+        </tab>
+        <section id="develo_easymanage" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Easymanage Extensions</label>
+            <tab>develo_extensions</tab>
+            <resource>Develo_Easymanages::configuration</resource>
+
+            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="1">
+                <label>General</label>
+
+                <field id="enable_addons" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable Addons</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Enable loading addons</comment>
+                </field>
+
+                <field id="enable_triggers" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable Triggers</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Enable triggers. Require for some other Easymange modules</comment>
+                </field>
+
+            </group>
+        </section>
+    </system>
+</config>

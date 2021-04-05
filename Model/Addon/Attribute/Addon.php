@@ -29,6 +29,7 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
       'icon' => self::ICON_NAME,
       'label' => __('Attribute Updater'),
       'active_table' => self::TABLE_INDEX,
+      'quick_menu' => true,
       'childs' => [
         $this->getTitleSidebar(),
         $this->getSearchInput(),

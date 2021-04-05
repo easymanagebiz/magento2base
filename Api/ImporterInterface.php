@@ -16,4 +16,11 @@ interface ImporterInterface {
      */
     public function process();
 
+    /**
+     * Get magento products
+     * @return string
+     */
+    public function fetch();
+
+
 }

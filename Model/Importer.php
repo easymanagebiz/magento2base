@@ -60,6 +60,15 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
   protected $_revisionUid = null;
 
+  protected $_exportProducts;
+
+  protected $_helperProducts;
+
+  protected $_defualtExportHeaders = [
+    ['name' => 'sku'],
+    ['name' => 'name']
+  ];
+
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
     \Develodesign\Easymanage\Model\SaveProducts $saveModel,
@@ -68,6 +77,8 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     \Develodesign\Easymanage\Helper\Images $helperImages,
     \Develodesign\Easymanage\Helper\Indexer $helperIndexer,
     \Develodesign\Easymanage\Helper\Attributes $helperAttributes,
+    \Develodesign\Easymanage\Model\Importer\ExportProducts $exportProducts,
+    \Develodesign\Easymanage\Helper\Products $helperProducts,
     \Psr\Log\LoggerInterface $logger
   ) {
 
@@ -80,6 +91,9 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     $this->_helperAttributes = $helperAttributes;
 
     $this->_magentoImportModel = $magentoImportModel;
+
+    $this->_exportProducts = $exportProducts;
+    $this->_helperProducts = $helperProducts;
   }
 
   public function save() {
@@ -257,6 +271,89 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     }
 
   }
+
+  public function fetch() {
+
+    $postValues = $this->request->getContent();
+
+    $postValuesArr = $postValues ? \Zend_Json::decode($postValues) : [];
+    $pagination = isset($postValuesArr['paginate']) ? $postValuesArr['paginate'] : [];
+
+    $storeId = $this->getStoreFilter($postValuesArr);
+
+    if($storeId) {
+      $this->_exportProducts->setStore($storeId);
+    }
+
+    $categories = $this->getCategoryIdsFilter($postValuesArr);
+    if($categories) {
+      $this->_exportProducts->setCategoriesIds($categories);
+    }
+
+    if(empty($pagination['page'])) {
+      $page = 1;
+    }else{
+      $page = $pagination['page'];
+      $page++;
+    }
+
+    $this->_exportProducts->setPage($page);
+    $data = $this->_exportProducts->_export();
+    $dataProducts = $this->_helperProducts
+      ->setCollection($data['collection'])
+      ->collectData(isset($postValuesArr['headers']) ? $postValuesArr['headers'] : $this->_defualtExportHeaders);
+
+      return [
+        'data'=> [
+          'postValues' => $postValuesArr,
+          'totalCount' => $data['total'],
+          'dataProducts' => $dataProducts,
+
+          'paginate' => [
+            'count' => $page * $data['limit'],
+            'limit' => $data['limit'],
+            'all'   => $data['total']
+          ]
+        ]
+      ];
+  }
+
+  protected function getCategoryIdsFilter($postValuesArr) {
+    $categoriesFilterOld = !empty($postValuesArr['category']) ? $postValuesArr['category'] : null;
+    if(!$categoriesFilterOld) {
+      $filterParams = ['default filter'];
+
+      if(!empty($postValuesArr['params'])) {
+        $str = parse_str($postValuesArr['params'], $filterParams);
+      }
+      $categories = !empty($filterParams['from_categories']) ? $filterParams['from_categories'] : null;
+    }else{
+      $categories = $categoriesFilterOld;
+    }
+    if(!$categories || (count($categories) == 1 && $categories[0] == '')) {
+      return;
+    }
+    return $categories;
+  }
+
+  protected function getStoreFilter($postValuesArr) {
+    $storeFilterOld = !empty($postValuesArr['store']) ? $postValuesArr['store'] : null;
+    if(!$storeFilterOld) {
+      $filterParams = ['default filter'];
+
+      if(!empty($postValuesArr['params'])) {
+        $str = parse_str($postValuesArr['params'], $filterParams);
+      }
+      $store = !empty($filterParams['from_stores']) ? $filterParams['from_stores'] : null;
+    }else{
+      $store = $storeFilterOld;
+    }
+    if(!$store) {
+      return;
+    }
+    return $store;
+  }
+
 
   protected function validateImportFile() {
 

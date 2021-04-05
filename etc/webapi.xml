@@ -131,6 +131,20 @@
 
         </resources>
     </route>
+    <route url="/V1/easymanage/importerprocess" method="POST">
+        <service class="Develodesign\Easymanage\Api\ImporterInterface" method="process"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources>
+    </route>
+    <route url="/V1/easymanage/importerfetch" method="POST">
+        <service class="Develodesign\Easymanage\Api\ImporterInterface" method="fetch"/>
+        <!-- resources>
+            <resource ref="Magento_Catalog::catalog"/>
+
+        </resources -->
+    </route>
 
     <!--
         test func
@@ -140,6 +154,15 @@
 
     <route url="/V1/easymanage/test" method="GET">
         <service class="Develodesign\Easymanage\Api\TestInterface" method="test"/>
+    </route>
+
+    <!-- trigger -->
+
+    <route url="/V1/easymanage/triggers" method="POST">
+        <service class="Develodesign\Easymanage\Api\TriggerInterface" method="trigger"/>
+        <resources>
+            <resource ref="Magento_Catalog::catalog"/>
+        </resources>
     </route>
 
     <!-- custom addons -->
