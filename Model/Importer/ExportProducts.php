@@ -45,6 +45,8 @@ class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
     foreach ($exportData as $dataRow) {
       $varienObject = new \Magento\Framework\DataObject();
       $collectionRow = [];
+      $dataRow = $this->_customFieldsMapping($dataRow);
+
       $dataRow = $this->updateWithImportData($dataRow) ;
       $varienObject->setData($dataRow);
       $collection->addItem($varienObject);

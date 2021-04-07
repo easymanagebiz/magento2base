@@ -260,7 +260,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         if(in_array($header['name'], $this->specialProcessData)) {
           $value = $this->specialProcessData($header['name'], $value);
         }
-        if($this->_attributeHelper->getIsOptionAttribute($header['name'])) {
+        if($this->_attributeHelper->getIsOptionAttribute($header['name']) && $header['name'] != 'visibility') {
           $row[] = $this->_attributeHelper->getOptionValues($header['name'], $value);
           continue;
         }

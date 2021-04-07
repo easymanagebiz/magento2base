@@ -33,6 +33,10 @@
     <preference for="Develodesign\Easymanage\Api\TriggerInterface"
       type="Develodesign\Easymanage\Model\Trigger" />
 
+    <!-- attributes -->
+    <preference for="Develodesign\Easymanage\Api\AttributesInterface"
+      type="Develodesign\Easymanage\Model\Attributes" />
+
     <!-- test -->
     <preference for="Develodesign\Easymanage\Api\TestInterface"
       type="Develodesign\Easymanage\Model\Test" />

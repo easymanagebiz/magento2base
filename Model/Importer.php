@@ -66,7 +66,8 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
   protected $_defualtExportHeaders = [
     ['name' => 'sku'],
-    ['name' => 'name']
+    ['name' => 'name'],
+    ['name' => 'visibility']
   ];
 
   public function __construct(

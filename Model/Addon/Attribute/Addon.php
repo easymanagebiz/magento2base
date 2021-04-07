@@ -72,7 +72,8 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
             'class' => self::UI_MENU_CLASS_COLUMN_MANAGER,
             'static_icon' => self::UI_ICON_COLUMNS,
             'label' => __('Manage columns'),
-            'translate_label' => true
+            'translate_label' => true,
+            'columns_template' => 'mag2_fieldswithattributes'
           ],
           [
             'class' => self::UI_COMPONENT_LOAD_SECONDARY_PANEL,
