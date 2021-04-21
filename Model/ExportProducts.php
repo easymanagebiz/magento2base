@@ -81,7 +81,7 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
 
   protected function getDataProducts($postValuesArr) {
     $this->_collection = $this->productCollection->create();
-    $this->addStoreFilter($postValuesArr);
+    $storeId = $this->addStoreFilter($postValuesArr);
     $this->addCategoryIdsFilter($postValuesArr);
 
     $this->_helperProducts
@@ -89,7 +89,7 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
       ->addFieldsToSelect($postValuesArr['headers']);
 
     return $this->_helperProducts
-                ->collectData($postValuesArr['headers']);
+                ->collectData($postValuesArr['headers'], $storeId);
   }
 
   protected function addCategoryIdsFilter($postValuesArr) {
@@ -127,6 +127,7 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
       return;
     }
     $this->_collection->addStoreFilter($store);
+    return $store;
   }
 
 }

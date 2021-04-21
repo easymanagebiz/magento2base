@@ -163,6 +163,14 @@ class Addon extends \Develodesign\Easymanage\Model\Addon\Base{
               ]
             ],
             'width' => 250
+          ],
+
+          [
+            'name' => 'store_code',
+            'label' => __('Store code'),
+            'translate_label' => true,
+            'validation' => [],
+            'not_default' => true
           ]
 
         ],

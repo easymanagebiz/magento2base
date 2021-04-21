@@ -16,6 +16,8 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
   protected $_specPriceStorage;
 
+  protected $storeRepository;
+
   protected $_isInventoryAdded = false;
 
   protected $_errors = [];
@@ -46,7 +48,9 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     \Magento\Framework\ObjectManagerInterface $objectManager,
     \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry,
 
-    \Develodesign\Easymanage\Helper\Attributes $attributeHelper
+    \Develodesign\Easymanage\Helper\Attributes $attributeHelper,
+
+    \Magento\Store\Api\StoreRepositoryInterface $storeRepository
 
   ) {
     $this->resource = $resource;
@@ -55,15 +59,30 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       $this->_specPriceStorage = $objectManager->get('\Magento\Catalog\Model\Product\Price\SpecialPriceStorage');
     }
 
+    $this->storeRepository    = $storeRepository;
     $this->_productRepository = $productRepository;
     $this->_productResource = $productResource;
     $this->_attributeHelper = $attributeHelper;
     parent::__construct($context);
   }
 
-  public function updateProduct($sku, $row, $fields) {
-    $product = $this->_productRepository->get($sku);
+  public function getProduct($sku, $row, $fields)
+  {
+    $storeId = $this->getStoreIdFromCode($row, $fields);
+    $product = null;
+    try  {
+      $product = $this->_productRepository->get($sku, true, $storeId);
 
+    }catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+        // store not found
+    }
+
+    return $product;
+  }
+
+  public function updateProduct($sku, $row, $fields) {
+
+    $product = $this->getProduct($sku, $row, $fields);
 
     $numField = 0;
     foreach($fields as $field) {
@@ -72,6 +91,12 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       }else{
         $name  = $field;
       }
+
+      if( $name == 'store_code') {
+        $numField++;
+        continue;
+      }
+
       $value = isset($row[$numField]) ? $row[$numField] : null;
 
       if((empty($value) && !is_numeric($value)) || $name == 'sku') {
@@ -107,7 +132,6 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         if($this->_attributeHelper->getIsOptionAttribute($name)) {
           $value = $this->_attributeHelper->getOptionIdsFromLabels($name, $value);
         }
-
         $product->setData($name, $value);
         $this->_productResource->saveAttribute($product, $name);
       }
@@ -182,6 +206,33 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     return $row;
   }
 
+  public function getStoreIdFromCode($row, $fields)
+  {
+    $storeCode = null;
+    foreach($fields as $rowIndex => $field) {
+
+      if(is_array($field)) {
+        $name  = $field['name'];
+      }
+
+      if($name == 'store_code') {
+        $storeCode = $row[ $rowIndex ];
+        break;
+      }
+    }
+
+    if(!$storeCode) {
+      return;
+    }
+
+    try {
+        $store = $this->storeRepository->get($storeCode);
+        return $store->getId(); // this is the store ID
+    } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+        // store not found
+    }
+  }
+
   protected function getPriceFieldIndexes($fields){
     $indexes = [];
     foreach($fields as $index => $field) {
@@ -246,16 +297,24 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     }
   }
 
-  public function collectData($headers) {
+  public function collectData($headers, $storeId = '') {
     if(!$this->_collection->getSize()) {
       return [];
     }
+
+    $storeCode = $this->getStoreCode($storeId);
 
     $output = [];
     foreach($this->_collection as $productObj) {
       $row = [];
 
       foreach($headers as $header) {
+
+        if($header['name'] == 'store_code') {
+          $row[] = $storeCode;
+          continue;
+        }
+
         $value = $productObj->getData($header['name']);
         if(in_array($header['name'], $this->specialProcessData)) {
           $value = $this->specialProcessData($header['name'], $value);
@@ -271,6 +330,19 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     return $output;
+  }
+
+  protected function getStoreCode($storeId)
+  {
+    $storeCode = '';
+    try {
+        $store = $this->storeRepository->getById($storeId);
+        $storeCode = $store->getCode(); // this is the store ID
+    } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+        // store not found
+    }
+
+    return $storeCode;
   }
 
   protected function specialProcessData($name, $value) {

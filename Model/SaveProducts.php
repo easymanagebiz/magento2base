@@ -12,7 +12,6 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   const REINDEX_COMPLETE = 2;
 
   protected $request;
-  protected $productCollection;
   protected $_dir;
   protected $_io;
   protected $_helperProducts;
@@ -22,7 +21,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   protected $_revisionId;
 
   protected $_notFoundSkus = [];
-  protected $_skusToSelect = [];
+
   protected $_newDataRows  = [];
   protected $_saveDataRows = [];
   protected $_revisionData = [];
@@ -36,7 +35,6 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
-    \Magento\Catalog\Model\ResourceModel\Product\CollectionFactory $productCollection,
     \Magento\Framework\Filesystem\DirectoryList $dir,
     \Magento\Framework\Filesystem\Io\File $io,
     \Develodesign\Easymanage\Helper\Indexer $helperIndexer,
@@ -45,7 +43,6 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   ) {
 
     $this->request = $request;
-    $this->productCollection = $productCollection;
     $this->logger = $logger;
     $this->_dir = $dir;
     $this->_io = $io;
@@ -173,7 +170,9 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       return $this->prepareProcessData($fields);
     }
     $totalSaved = 0;
-    foreach($this->_saveDataRows as $sku => $newRow) {
+
+    foreach($this->_saveDataRows as $newRow) {
+      $sku = $this->getProductSkuFromRow($newRow);
       $this->_helperProducts->updateProduct($sku, $newRow, $fields);
       $totalSaved++;
     }
@@ -273,17 +272,16 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     $collectionData = [];
     foreach($products as $productRow) {
       $sku = $this->getProductSkuFromRow($productRow);
-      $this->_skusToSelect[$sku] = $sku;
+
       $rowPriceCorrected = $this->_helperProducts->correctPriceFieldsData($productRow, $fields);
       $rowFinal = $this->checkWithFieldsRowData($rowPriceCorrected, $fields);
-      $this->_newDataRows[$sku]  = $rowFinal; //$productRow;
+      $this->_newDataRows[]  = $rowFinal; //$productRow;
       $countSteps++;
 
       if($countSteps == self::STEP_CREATE_REVISION) {
         $notFoundSkus = $this->processCurrentData($fields);
         $this->_notFoundSkus = array_merge($notFoundSkus, $this->_notFoundSkus);
         $countSteps = 0;
-        $this->_skusToSelect = [];
       }
     }
 
@@ -335,54 +333,48 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   }
 
   protected function processCurrentData($fields) {
-    $collection = $this->productCollection->create();
-    $collection = $this->_helperProducts
-      ->setCollection($collection)
-      ->addFieldsToSelect($fields);
-
-    $collection->addAttributeToFilter(
-        'sku', array('in' => array_keys($this->_skusToSelect))
-    );
-
-    $dataSelected = $this->_helperProducts
-      ->setCollection($collection)
-      ->collectData($fields);
-
-    $notFoundSkus = $this->processNotFoundSkus($dataSelected);
+    $notFoundSkus = [];
+    foreach($this->_newDataRows as $index => $dataToSave) {
+      $sku         = $this->getProductSkuFromRow($dataToSave);
+      $currentProduct = $this->_helperProducts->getProduct($sku, $dataToSave, $fields);
+      if(!$currentProduct) {
+        $notFoundSkus[] = $sku;
+        continue;
+      }
+      $currentRow = $this->collectProductData($currentProduct, $fields);
+      $difference  = array_diff_assoc($dataToSave, $currentRow);
+      if($difference && count($difference) > 0) {
+        $this->_revisionData[] = $dataToSave;
+        $this->_saveDataRows[$index] = $this->getNewSaveRow($this->_newDataRows[$index], $difference);
+      }
+    }
 
     return $notFoundSkus;
   }
 
-  protected function processNotFoundSkus($dataSelected) {
-    $selectedSkus = array_keys($this->_skusToSelect);
-    $foundSkus    = [];
-    foreach($dataSelected as $row) {
-      $sku         = $this->getProductSkuFromRow($row);
-      $dataToSave  = $this->_newDataRows[$sku];
-      $foundSkus[] = $sku;
-      $difference  = array_diff_assoc($dataToSave, $row);
-      if($difference && count($difference) > 0) {
-        $this->_revisionData[] = $row;
-        $this->_saveDataRows[$sku] = $this->getNewSaveRow($this->_newDataRows[$sku], $difference);
+  protected function collectProductData($currentProduct, $fields)
+  {
+    $data = [];
+    foreach($fields as $field) {
+      if(is_array($field)) {
+        $name  = $field['name'];
       }else{
-        unset($this->_newDataRows[$sku]);
+        $name  = $field;
       }
+      $data[] = $currentProduct->getData($name);
     }
 
-    $notFoundSkus = array_diff($selectedSkus, $foundSkus);
-
-    if($notFoundSkus) {
-      foreach($notFoundSkus as $_notFoundSku) {
-        unset($this->_newDataRows[$_notFoundSku]);
-      }
-    }
-
-    return $notFoundSkus;
+    return $data;
   }
 
   protected function getNewSaveRow($currentRow, $difference) {
     $newRow = [];
     foreach($currentRow as $index=>$val) {
+      if($index == 0) {//sku
+        $newRow[] = $val;
+        continue;
+      }
+
       $val = isset($difference[$index]) ? $difference[$index] : null;
       if(!isset($val) && !is_numeric($val)) {
         $newRow[] = '';
