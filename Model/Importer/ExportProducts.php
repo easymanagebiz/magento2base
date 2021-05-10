@@ -24,9 +24,12 @@ class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
     ];
 
     $entityCollection = $this->_getEntityCollection(true);
-    $entityCollection->setOrder('entity_id', 'asc');
+    //$entityCollection->setOrder('entity_id', 'asc');
 
     $entityCollection->addStoreFilter( $this->getStore() );
+    if($this->getStore()) {
+      $entityCollection->setStoreId($this->getStore());
+    }
     $categories = $this->getCategoriesIds();
     if($categories) {
       $entityCollection->addCategoriesFilter(['in' => $categories]);
@@ -80,7 +83,6 @@ class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
     if(!empty($dataRow['_product_websites'])) {
       $dataRow['product_websites'] = $dataRow['_product_websites'];
     }
-
     return $dataRow;
   }
 
