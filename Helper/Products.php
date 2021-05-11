@@ -2,6 +2,8 @@
 
 namespace Develodesign\Easymanage\Helper;
 
+use \Magento\Store\Model\Store;
+
 class Products extends \Magento\Framework\App\Helper\AbstractHelper
 {
 
@@ -66,15 +68,16 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     parent::__construct($context);
   }
 
-  public function getProduct($sku, $row, $fields)
+  public function getProduct($sku)
   {
-    $storeId = $this->getStoreIdFromCode($row, $fields);
     $product = null;
     try  {
-      $product = $this->_productRepository->get($sku, true, $storeId);
+      $product = $this->_productRepository->get($sku);
 
     }catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
-        // store not found
+        // product not found
+
+        var_dump($sku);
     }
 
     return $product;
@@ -83,6 +86,11 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   public function updateProduct($sku, $row, $fields) {
 
     $product = $this->getProduct($sku, $row, $fields);
+    $storeId = $this->getStoreIdFromCode($row, $fields);
+
+    if($storeId) {
+      $product->setStoreId($storeId);
+    }
 
     $numField = 0;
     foreach($fields as $field) {
@@ -113,7 +121,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
           //https://github.com/magento/magento2/issues/18268
           //https://github.com/magento/magento2/pull/18631
           if($this->_specPriceStorage) {
-            $this->specialProcessSaveData($product, $name, $value, $sku);
+            $this->specialProcessSaveData($product, $name, $value, $sku, $storeId);
             continue;
           }
           $value = null;
@@ -153,7 +161,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       }
 
       if(in_array($name, $this->notAttribute)) {
-        $this->specialProcessSaveData($product, $name, $value, $sku);
+        $this->specialProcessSaveData($product, $name, $value, $sku, $storeId);
       }
       $numField++;
     }
@@ -167,7 +175,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     return $this->_errors;
   }
 
-  public function specialProcessSaveData($product, $name, $value, $sku) {
+  public function specialProcessSaveData($product, $name, $value, $sku, $storeId) {
 
     switch($name) {
       case 'special_price':
@@ -175,12 +183,17 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         if(empty($updateArr) || empty($updateArr[0])) {
           return;
         }
-        $updateObj = $updateArr[0];
-        if($updateObj->getSku() != $sku) {
-          return;
+
+        foreach($updateArr as $updateObj) {
+          if($updateObj->getSku() != $sku) {
+            continue;
+          }
+          if($storeId && $storeId != $updateObj->getStoreId()) {
+            continue;
+          }
+          $updateObj->setPrice( $value );
+          $this->_specPriceStorage->delete([$updateObj]);
         }
-        $updateObj->setPrice( $value );
-        $this->_specPriceStorage->delete([$updateObj]);
 
       break;
       case 'qty':
@@ -211,6 +224,8 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     $storeCode = null;
     foreach($fields as $rowIndex => $field) {
 
+      $name  = '';
+
       if(is_array($field)) {
         $name  = $field['name'];
       }
@@ -227,7 +242,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
     try {
         $store = $this->storeRepository->get($storeCode);
-        return $store->getId(); // this is the store ID
+        return $store->getId() != null && $store->getId() != Store::DEFAULT_STORE_ID ? $store->getId() : null; // this is the store ID
     } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
         // store not found
     }

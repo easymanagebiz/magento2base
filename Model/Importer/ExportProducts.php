@@ -3,7 +3,7 @@
 namespace Develodesign\Easymanage\Model\Importer;
 
 use \Magento\Store\Model\Store;
-
+ 
 class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
 {
 

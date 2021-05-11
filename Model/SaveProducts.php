@@ -4,9 +4,9 @@ namespace Develodesign\Easymanage\Model;
 
 class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface{
 
-  const STEP_CREATE_REVISION = 100;
+  const STEP_CREATE_REVISION = 25;
 
-  const COUNT_TO_SAVE_STEP = 100;
+  const COUNT_TO_SAVE_STEP = 25;
 
   const REINDEX_RUN = 1;
   const REINDEX_COMPLETE = 2;
@@ -241,8 +241,8 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       $all++;
     }
     $csvData[] = $headers;
-    foreach($this->_saveDataRows as $sku=>$row) {
-      $row[$countSku]    = $sku;
+    foreach($this->_saveDataRows as $indexRow=>$row) {
+      //$row[$countSku]    = $sku;
       $csvData[] = $row;
     }
 
