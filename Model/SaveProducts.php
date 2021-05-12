@@ -4,50 +4,36 @@ namespace Develodesign\Easymanage\Model;
 
 class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface{
 
-  const STEP_CREATE_REVISION = 25;
-
-  const COUNT_TO_SAVE_STEP = 25;
+  const PROCESS_STEP = 100;
+  const SKU_KEY = 'sku';
 
   const REINDEX_RUN = 1;
   const REINDEX_COMPLETE = 2;
 
   protected $request;
-  protected $_dir;
-  protected $_io;
+
   protected $_helperProducts;
   protected $_helperIndexer;
+  protected $_helperProcess;
   protected $logger;
-
-  protected $_revisionId;
 
   protected $_notFoundSkus = [];
 
-  protected $_newDataRows  = [];
-  protected $_saveDataRows = [];
-  protected $_revisionData = [];
-  protected $_startNewProcess = 0;
-
-  const REVISION_FOLDER = 'dd_easymanage_revision';
-  const WORKING_FOLDER = 'dd_easymanage_process';
-  const CHMOD_DIR = 0775;
-
-  const LOCKING_FILE_NAME = 'lockdata';
+  protected $_isDebug = true;
 
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
-    \Magento\Framework\Filesystem\DirectoryList $dir,
-    \Magento\Framework\Filesystem\Io\File $io,
     \Develodesign\Easymanage\Helper\Indexer $helperIndexer,
+    \Develodesign\Easymanage\Helper\Process $helperProcess,
     \Develodesign\Easymanage\Helper\Products $helperProducts,
     \Psr\Log\LoggerInterface $logger
   ) {
 
     $this->request = $request;
     $this->logger = $logger;
-    $this->_dir = $dir;
-    $this->_io = $io;
     $this->_helperProducts = $helperProducts;
     $this->_helperIndexer = $helperIndexer;
+    $this->_helperProcess = $helperProcess;
   }
 
   public function process() {
@@ -66,60 +52,55 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
         ]];
       }
 
-      $lockData  = $this->readLockFileData($revisionId);
-      if(!$lockData) {
-        $errorMessage = 'Updater process cant read lockdata for revision ID: ' . $revisionId;
-        $this->logger->debug();
-        return [[
-            'error' => $errorMessage
-        ]];
-      };
-
-      $step     = $lockData['step'];
-      $saveData = $this->readProcessFile($revisionId);
-      $count      = 0;
-      $headers    = [];
-      $totalSaved = 0;
-      foreach ($saveData as $row) {
-        if($count == 0 && count($headers) == 0) {
-          $headers = $row;
-          continue;
-        }
-        if($count < $step) {
-          $count++;
-          continue;
-        }
-        $sku = $this->getProductSkuFromRow($row);
-        $this->_helperProducts->updateProduct($sku, $row, $headers);
-        $totalSaved++;
-        $count++;
-        if($totalSaved >= self::COUNT_TO_SAVE_STEP) {
-          break;
-        }
-      }
-      $lockData['step'] = $count;
-      $this->_revisionId = $revisionId;
+      $processData = $this->_helperProcess->getProcessData( $revisionId, self::PROCESS_STEP );
       $reindexing = 0;
-      if($count == $lockData['total'] && empty($lockData['reindex'])) {
-        //reindex data
+      $step = 0;
+      if(empty($processData['data']) && $processData['total'] == $processData['step'] && empty($processData['reindex'])) { //reindex required
+
         $reindexing = self::REINDEX_RUN;
-        $lockData['reindex'] = true;
         $this->_helperIndexer->reindexAll();
-        $this->updateLockFile($lockData);
-      }else if($count == $lockData['total'] && !empty($lockData['reindex'])) {
+        $this->_helperProcess->updateLockFile($revisionId, ['reindex' => true]);
+
+      }else if(!empty($processData['reindex'])) {
+
         $reindexing = self::REINDEX_COMPLETE;
-        $this->removeWorkingFiles($revisionId);
+        $this->_helperProcess->removeWorkingFiles($revisionId);
+
+      }else if(!empty($processData['data'])){
+
+        $totalSaved = 0;
+        $step  = $processData['step'];
+        foreach($processData['data'] as $indx => $row) {
+          $saved = $this->processDataRow($row, $processData['headers'], $indx);
+          if($saved) {
+            $totalSaved++;
+          }
+          $step++;
+        }
+        $this->_helperProcess->updateLockFile($revisionId, ['step' => $step]);
+
       }else{
-        $this->updateLockFile($lockData);
+        $errorMessage = 'Unknown process data revision ID: ' . $revisionId;
+        return [[
+          'error' => $errorMessage
+        ]];
       }
+
+      /* start re-index */
+      if($step == $processData['total'] && empty($processData['reindex']) ) {
+        $reindexing = self::REINDEX_RUN;
+        $this->_helperIndexer->reindexAll();
+        $this->_helperProcess->updateLockFile($revisionId, ['reindex' => true]);
+      }
+
 
       return [[
         'status' => 'ok',
         'revisionId' => $revisionId,
-        'total_saved' => $count,
-        'total' => $lockData['total'],
+        'total_saved' => !empty($step) ? $step : $processData['total'],
+        'total' => $processData['total'],
         'reindex' => $reindexing,
-        'not_found_sku' => $lockData['not_found_sku'],
+        'not_found_sku' => $this->_notFoundSkus,
         'log_errors' => $this->_helperProducts->getErrors()
       ]];
 
@@ -133,13 +114,32 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   public function save() {
 
     try {
+
+      $startNewProcess = true;
+      $totalSaved      = 0;
+      $revisionId      = '';
+
       $postValues   = $this->request->getContent();
       $data         = \Zend_Json::decode($postValues);
 
-      $revisionId = $this->createRevisionAndSaveFileData($data);
-      $totalSaved = $this->saveNewData($data['headers']);
+      $products = $data['products'];
+      $headers   = $this->dataFieldsToHeaders($data['headers']);
 
-      if(!$this->_startNewProcess) {
+      if(count($products) <= self::PROCESS_STEP) {
+
+        foreach($products as $indx => $row) {
+          $saved = $this->processDataRow($row, $headers, $indx);
+          if($saved) {
+            $totalSaved++;
+          }
+        }
+
+        $startNewProcess = false;
+      }else{
+        $revisionId = $this->_helperProcess->saveProcessData(array_merge([$headers], $products));
+      }
+
+      if(!$startNewProcess) {
         $this->_helperIndexer->reindexAll();
       }
 
@@ -148,13 +148,14 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
         'type'   => $data['extra']['type'],
         'sheet_id' => $data['sheet_id'],
         'not_found_sku' => $this->_notFoundSkus,
-        'revisionId' => $this->_revisionId,
-        'total_saved' => $totalSaved ? $totalSaved : '0',
-        'start_process' => $this->_startNewProcess,
-        'total' => count($this->_saveDataRows),
+        'revisionId' => $revisionId,
+        'total_saved' => $totalSaved,
+        'start_process' => $startNewProcess,
+        'total' => count($products),
         'log_errors' => $this->_helperProducts->getErrors()
         //'saveRows' => $this->_saveDataRows
       ]];
+
     }catch(Exception $e) {
       return [[
           'error' => $errorMessage
@@ -162,209 +163,48 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     }
   }
 
-  protected function saveNewData($fields) {
-    if(!count($this->_saveDataRows)) {
-      return '0';
-    }
-    if(count($this->_saveDataRows) >= self::COUNT_TO_SAVE_STEP) {
-      return $this->prepareProcessData($fields);
-    }
-    $totalSaved = 0;
-
-    foreach($this->_saveDataRows as $newRow) {
-      $sku = $this->getProductSkuFromRow($newRow);
-      $this->_helperProducts->updateProduct($sku, $newRow, $fields);
-      $totalSaved++;
-    }
-
-    return $totalSaved;
-  }
-
-  protected function prepareProcessData($fields) {
-    $this->_startNewProcess = 1;
-    $dataFile = $this->createProcessFile($fields);
-    $lockFile = $this->updateLockFile();
-  }
-
-  protected function updateLockFile($data = null) {
-    $data = $data ? $data : [
-      'status' => 0,
-      'step' => 0,
-      'not_found_sku' => $this->_notFoundSkus,
-      'total' => count($this->_saveDataRows)
-    ];
-    $wokingFolder = $this->getWorkingFolder();
-    $lockFileName = $this->getLockingFileName($this->_revisionId);
-    $file = fopen($wokingFolder . DIRECTORY_SEPARATOR . $lockFileName, "w");
-    $saveString = \Zend_Json::encode($data);
-    fwrite($file, $saveString);
-    fclose($file);
-    return true;
-  }
-
-  protected function readLockFileData($revisionId) {
-    $wokingFolder = $this->getWorkingFolder();
-    $lockFileName = $this->getLockingFileName($revisionId);
-    $fullPath = $wokingFolder . DIRECTORY_SEPARATOR . $lockFileName;
-    if(!is_file($fullPath)) {
-      return;
-    }
-    $file = fopen($fullPath, "r");
-    $contents = fread($file, filesize($fullPath));
-    fclose($file);
-    return \Zend_Json::decode( $contents );
-  }
-
-  protected function readProcessFile($revisionId) {
-    $wokingFolder = $this->getWorkingFolder();
-    $filePath     = $wokingFolder . DIRECTORY_SEPARATOR . $revisionId;
-    return array_map('str_getcsv', file($filePath));
-  }
-
-  protected function removeWorkingFiles($revisionId) {
-    $wokingFolder = $this->getWorkingFolder();
-    $filePathWorkingFile = $wokingFolder . DIRECTORY_SEPARATOR . $revisionId;
-    unlink($filePathWorkingFile);
-    $filePathLockFile = $wokingFolder . DIRECTORY_SEPARATOR . $this->getLockingFileName($revisionId);
-    unlink($filePathLockFile);
-  }
-
-  protected function createProcessFile($fields) {
-    $wokingFolder = $this->getWorkingFolder();
-    $countSku = 0;
-    $all = 0;
-    foreach($fields as $field) {
-      $headers[] = $field['name'];
-      if($field['name'] == 'sku') {
-        $countSku = $all;
-      }
-      $all++;
-    }
-    $csvData[] = $headers;
-    foreach($this->_saveDataRows as $indexRow=>$row) {
-      //$row[$countSku]    = $sku;
-      $csvData[] = $row;
-    }
-
-    $file = fopen($wokingFolder . DIRECTORY_SEPARATOR . $this->_revisionId, "w");
-
-    foreach ($csvData as $line){
-        fputcsv($file, $line);
-    }
-    fclose($file);
-
-  }
-
-  protected function createRevisionAndSaveFileData($data) {
-    $foldres = $this->getFolders();
-    if(empty($foldres['revision'])) {
-      return $folders;//errors
-    }
-    $products = $data['products'];
-    $fields   = $data['headers'];
-    $revisionId = $this->collectRevisionAndSaveFileData($products, $fields, $foldres);
-
-    return $revisionId;
-  }
-
-  protected function collectRevisionAndSaveFileData($products, $fields, $foldres) {
-    $countSteps = 0;
-    $collectionData = [];
-    foreach($products as $productRow) {
-      $sku = $this->getProductSkuFromRow($productRow);
-
-      $rowPriceCorrected = $this->_helperProducts->correctPriceFieldsData($productRow, $fields);
-      $rowFinal = $this->checkWithFieldsRowData($rowPriceCorrected, $fields);
-      $this->_newDataRows[]  = $rowFinal; //$productRow;
-      $countSteps++;
-
-      if($countSteps == self::STEP_CREATE_REVISION) {
-        $notFoundSkus = $this->processCurrentData($fields);
-        $this->_notFoundSkus = array_merge($notFoundSkus, $this->_notFoundSkus);
-        $countSteps = 0;
-      }
-    }
-
-    if($countSteps != 0) {
-      $notFoundSkus = $this->processCurrentData($fields);
-      $this->_notFoundSkus = array_merge($notFoundSkus, $this->_notFoundSkus);
-    }
-
-    $this->_revisionId = $this->saveRevisionData($foldres, $fields);
-    return $this->_revisionId;
-  }
-
-  protected function checkWithFieldsRowData($rowData, $fields) {
-    $correctRow = [];
-    foreach($fields as $index=>$field) {
-      $correctRow[$index] = $rowData[$index];
-    }
-    return $correctRow;
-  }
-
-  protected function saveRevisionData($foldres, $fields) {
-    if(!count($this->_revisionData)) {
-      return;
-    }
-    $revisionId = $this->generateRevisionId();
-    $folderRevision = $foldres['revision'];
-    $csvData = [];
+  protected function dataFieldsToHeaders($fields)
+  {
     $headers = [];
     foreach($fields as $field) {
       $headers[] = $field['name'];
     }
-    $csvData[] = $headers;
-    foreach($this->_revisionData as $row) {
-      $csvData[] = $row;
-    }
-
-    $file = fopen($folderRevision . DIRECTORY_SEPARATOR . $revisionId, "w");
-
-    foreach ($csvData as $line){
-        fputcsv($file,$line);
-    }
-    fclose($file);
-
-    return $revisionId;
+    return $headers;
   }
 
-  protected function generateRevisionId() {
-    return uniqid();
-  }
-
-  protected function processCurrentData($fields) {
-    $notFoundSkus = [];
-    foreach($this->_newDataRows as $index => $dataToSave) {
-      $sku         = $this->getProductSkuFromRow($dataToSave);
-      $currentProduct = $this->_helperProducts->getProduct($sku, $dataToSave, $fields);
-      if(!$currentProduct) {
-        $notFoundSkus[] = $sku;
-        continue;
-      }
-      $currentRow = $this->collectProductData($currentProduct, $fields);
-      $difference  = array_diff_assoc($dataToSave, $currentRow);
-      if($difference && count($difference) > 0) {
-        $this->_revisionData[] = $dataToSave;
-        $this->_saveDataRows[$index] = $this->getNewSaveRow($this->_newDataRows[$index], $difference);
-      }
-    }
-
-    return $notFoundSkus;
-  }
-
-  protected function collectProductData($currentProduct, $fields)
+  protected function processDataRow($row, $headers, $indx)
   {
-    $data = [];
-    foreach($fields as $field) {
-      if(is_array($field)) {
-        $name  = $field['name'];
-      }else{
-        $name  = $field;
-      }
-      $data[] = $currentProduct->getData($name);
+    if($this->_isDebug) {
+      $start_time = microtime(true);
     }
 
-    return $data;
+    $row = $this->_helperProducts->correctPriceFieldsData($row, $headers);
+
+    $sku = $this->getProductSkuFromRow($row, $headers);
+    if( !$sku ) {
+      $this->_notFoundSkus[] = 'EMPTY(' . $this->convertIndexToLineNumber($indx) . ')';
+      return;
+    }
+    $currentProduct = $this->_helperProducts->getProduct($sku, $row, $headers, true);
+    if(!$currentProduct) {
+      $this->_notFoundSkus[] = $sku;
+      return;
+    }
+
+    $currentRow = $this->collectProductData($currentProduct, $headers);
+    $difference  = array_diff_assoc($row, $currentRow);
+
+    $dataToSave = $this->getNewSaveRow($currentRow, $difference);
+
+    $sku = $this->getProductSkuFromRow($row, $headers);
+    $this->_helperProducts->updateProduct($sku, $row, $headers);
+
+    if($this->_isDebug) {
+      $end_time = microtime(true);
+      $this->logger-> notice('Save product time ' . ($end_time - $start_time) . ' s - SKU: ' . $sku);
+    }
+
+    return true; //flag save done
   }
 
   protected function getNewSaveRow($currentRow, $difference) {
@@ -385,66 +225,43 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     return $newRow;
   }
 
-  protected function getProductSkuFromRow($row) {
-    return $row[0];
-  }
+  protected function collectProductData($currentProduct, $fields)
+  {
+    $data = [];
+    foreach($fields as $field) {
+      if(is_array($field)) {
+        $name  = $field['name'];
+      }else{
+        $name  = $field;
+      }
 
-  public function getFolders() {
-    $revisionFolder = $this->getRevisionFolder();
-    if(!$revisionFolder) {
-      return [[
-        'error' => true,
-        'message' => __('Error create folder in pub directory!')
-      ]];
+      if($name == 'NOT_USE') {
+          $data[] = '';
+      }
+
+      $data[] = $currentProduct->getData($name);
     }
-    return [
-      'revision' => $revisionFolder,
-    ];
+    $data = $this->_helperProducts->correctPriceFieldsData($data, $fields);
+    return $this->_helperProducts->correctStockQtyFields($data, $fields, $currentProduct, true);
   }
 
-  public function getRevisionFolder() {
-    $filePath = $this->getRevisionFolderPath();
-    if (!is_dir($filePath)) {
-      try{
-        $this->_io->mkdir($filePath, self::CHMOD_DIR);
-      }catch(\Exception $e) {
-        return false;
+  protected function convertIndexToLineNumber($indx)
+  {
+    return $indx+1;
+  }
+
+  protected function getProductSkuFromRow($row, $headers)
+  {
+    $index = $this->findSkuIndex($headers);
+    return !empty($row[$index]) ? $row[$index] : null;
+  }
+
+  protected function findSkuIndex($headers)
+  {
+    foreach( $headers as $indx => $header) {
+      if($header == self::SKU_KEY) {
+        return $indx;
       }
     }
-    return $filePath;
-  }
-
-  public function getWorkingFolder() {
-    $filePath = $this->getWorkingFolderPath();
-    if (!is_dir($filePath)) {
-      try{
-        $this->_io->mkdir($filePath, self::CHMOD_DIR);
-      }catch(\Exception $e) {
-        return false;
-      }
-    }
-    return $filePath;
-  }
-
-  public function getLockingFileName($revisionId) {
-    return self::LOCKING_FILE_NAME . '_' . $revisionId;
-  }
-
-  protected function getWorkingFolderPath() {
-    return $this->_dir->getPath('pub') . DIRECTORY_SEPARATOR
-                .self::WORKING_FOLDER;
-  }
-
-  protected function getRevisionFolderPath($timestamp = null) {
-    return $this->getRevisionFolderPathBase() . ($timestamp ? date('Y-m-d', $timestamp) : date('Y-m-d'));
-  }
-
-  protected function getRevisionFolderPathBase() {
-    return $this->_dir->getPath('pub') . DIRECTORY_SEPARATOR
-                .self::REVISION_FOLDER . DIRECTORY_SEPARATOR;
-  }
-
-  public function getDirectoryIterator($path){
-      return new \DirectoryIterator($path);
   }
 }

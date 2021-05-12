@@ -41,6 +41,10 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     'price', 'special_price'
   ];
 
+  protected $_stockFields = [
+    'qty', 'in_stock'
+  ];
+
   public function __construct(
     \Magento\Framework\App\Helper\Context $context,
 
@@ -68,24 +72,32 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     parent::__construct($context);
   }
 
-  public function getProduct($sku)
+  public function getProduct($sku, $row, $fields, $useStore = false)
   {
-    $product = null;
     try  {
-      $product = $this->_productRepository->get($sku);
+
+      if(!$useStore) {
+        return  $this->_productRepository->get($sku);
+      }
+      $storeId = $this->getStoreIdFromCode($row, $fields);
+      if($storeId && $storeId != Store::DEFAULT_STORE_ID) {
+        return $this->_productRepository->get($sku, false, $storeId);
+      }
+
+      return $this->_productRepository->get($sku);
 
     }catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
-        // product not found
-
-        var_dump($sku);
+        return null; //no product found
     }
-
-    return $product;
   }
 
   public function updateProduct($sku, $row, $fields) {
 
     $product = $this->getProduct($sku, $row, $fields);
+    if(!$product) {
+      return;
+    }
+
     $storeId = $this->getStoreIdFromCode($row, $fields);
 
     if($storeId) {
@@ -100,7 +112,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         $name  = $field;
       }
 
-      if( $name == 'store_code') {
+      if( $name == 'store_code' || $name == 'NOT_USE') {
         $numField++;
         continue;
       }
@@ -165,6 +177,8 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       }
       $numField++;
     }
+
+    return true;
   }
 
   protected function addError($errText) {
@@ -219,6 +233,39 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     return $row;
   }
 
+  public function correctStockQtyFields($row, $fields, $product = null, $addValues = false)
+  {
+    $indexes = $this->getStockFieldIndexes($fields);
+
+    foreach($indexes as $name=>$index) {
+
+      if($addValues && $product) {
+        $row[$index] = $this->getStockValuesProduct($name, $product);
+      }
+
+      $row[$index] = $this->specialProcessData($name, $row[$index]);
+    }
+
+    return $row;
+  }
+
+  public function getStockValuesProduct($name, $product)
+  {
+    switch ($name) {
+
+      case 'in_stock':
+          $productStock = $this->_stockRegistry->getStockItem($product->getId());
+          return $productStock->getIsInStock();
+        break;
+
+      case 'qty':
+          $productStock = $this->_stockRegistry->getStockItem($product->getId());
+          return $productStock->getQty();
+        break;
+
+    }
+  }
+
   public function getStoreIdFromCode($row, $fields)
   {
     $storeCode = null;
@@ -250,9 +297,25 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
   protected function getPriceFieldIndexes($fields){
     $indexes = [];
-    foreach($fields as $index => $field) {
-      $name = $field['name'];
+    foreach($fields as $index => $name) {
+      if(is_array($name)) {
+        $name = $name['name'];
+      }
       if(in_array($name, $this->_priceFields)) {
+        $indexes[$name] = $index;
+      }
+    }
+
+    return $indexes;
+  }
+
+  protected function getStockFieldIndexes($fields) {
+    $indexes = [];
+    foreach($fields as $index => $name) {
+      if(is_array($name)) {
+        $name = $name['name'];
+      }
+      if(in_array($name, $this->_stockFields)) {
         $indexes[$name] = $index;
       }
     }
@@ -363,6 +426,9 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   protected function specialProcessData($name, $value) {
     switch($name) {
       case 'status':
+        return intval($value) > 0 ? 1 : 0;
+      break;
+      case 'in_stock':
         return intval($value) > 0 ? 1 : 0;
       break;
       case 'tax_class_id':
