@@ -112,7 +112,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
         $name  = $field;
       }
 
-      if( $name == 'store_code' || $name == 'NOT_USE') {
+      if( $name == 'store_code' || $name == 'NOT_USE' || $name == 'line_number') {
         $numField++;
         continue;
       }

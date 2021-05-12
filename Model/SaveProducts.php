@@ -54,8 +54,8 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
       $processData = $this->_helperProcess->getProcessData( $revisionId, self::PROCESS_STEP );
       $reindexing = 0;
-      $step = 0;
-      if(empty($processData['data']) && $processData['total'] == $processData['step'] && empty($processData['reindex'])) { //reindex required
+      $step = !empty($processData['step']) ? $processData['step'] : 0;
+      if(empty($processData['data']) && $processData['total'] <= $step && empty($processData['reindex'])) { //reindex required
 
         $reindexing = self::REINDEX_RUN;
         $this->_helperIndexer->reindexAll();
@@ -167,7 +167,11 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   {
     $headers = [];
     foreach($fields as $field) {
-      $headers[] = $field['name'];
+      if(is_array($field)) {
+        $headers[] = $field['name'];
+      }else{
+        $headers[] = $field;
+      }
     }
     return $headers;
   }

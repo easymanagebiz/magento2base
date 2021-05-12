@@ -65,10 +65,11 @@ class Process extends \Magento\Framework\App\Helper\AbstractHelper
       $total      = 0;
 
       foreach ($saveData as $line => $row) {
-        if($count == 0 && count($headers) == 0) {
+        if(count($headers) == 0) {
           $headers = $row;
           continue;
         }
+
         if($count < $step) {
           $count++;
           continue;
@@ -86,6 +87,7 @@ class Process extends \Magento\Framework\App\Helper\AbstractHelper
         'data'    => $dataOut,
         'total'   => $lockData['total'],
         'step'    => $lockData['step'],
+        'status'  => !empty($lockData['status']) ? true : false,
         'reindex' => !empty($lockData['reindex']) ? true : false
       ];
     }
@@ -173,7 +175,6 @@ class Process extends \Magento\Framework\App\Helper\AbstractHelper
 
     protected function setError($error) {
       $this->_error = $error;
-      $this->logger->debug($error);
     }
 
     public function getError() {

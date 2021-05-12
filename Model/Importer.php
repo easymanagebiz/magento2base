@@ -12,6 +12,8 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
   const ENTITY = 'catalog_product';
   const BEHAVIOR = 'append';
 
+  const READY_FOR_IMPORT = 'file_ready';
+
   const VALIDATION_STRATEGY = 'validation-stop-on-errors';
   const VALIDATION_CONTINUE_ANYWAY = 'validation-skip-errors';
 
@@ -26,13 +28,13 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
   const STATUS_BEGIN = 0;
 
-  const STATUS_IMPORT_FILE_CREATED = 1;
+  //const STATUS_IMPORT_FILE_CREATED = 1;
 
-  const STATUS_IMPORT_DONE = 2;
+  const STATUS_IMPORT_DONE = 1;
 
-  const STATUS_STATUS_REINDEX = 3;
+  const STATUS_STATUS_REINDEX = 2;
 
-  const CHMOD_FOLDER = 0755;
+  const PROCESS_STEP = 500;
 
   protected $_saveModel;
 
@@ -49,6 +51,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
   protected $_helperIndexer;
 
   protected $_helperAttributes;
+  protected $_helperProcess;
 
   protected $_headers;
 
@@ -70,6 +73,12 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     ['name' => 'visibility']
   ];
 
+  protected $_step;
+
+  protected $_isDebug = true;
+
+  protected $_loadedCSV = null;
+
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
     \Develodesign\Easymanage\Model\SaveProducts $saveModel,
@@ -80,6 +89,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     \Develodesign\Easymanage\Helper\Attributes $helperAttributes,
     \Develodesign\Easymanage\Model\Importer\ExportProducts $exportProducts,
     \Develodesign\Easymanage\Helper\Products $helperProducts,
+    \Develodesign\Easymanage\Helper\Process $helperProcess,
     \Psr\Log\LoggerInterface $logger
   ) {
 
@@ -95,12 +105,16 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
     $this->_exportProducts = $exportProducts;
     $this->_helperProducts = $helperProducts;
+    $this->_helperProcess = $helperProcess;
   }
 
   public function save() {
 
     try {
 
+      $logMessage   = null;
+      $startProcess = true;
+      $complete     = false;
       $this->initImagesHelper();
 
       $postValues   = $this->request->getContent();
@@ -108,23 +122,45 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
 
       $this->prepareData($data);
 
-      $this->generateUIDFile();
+      //$this->generateUIDFile();
 
-      $this->updateLockFile();
+      //$this->updateLockFile();
 
       $this->_helperImages->finish();
+      $revisionId = $this->_helperProcess->saveProcessData(array_merge([$this->_headers], $this->_data));
+
+      if(count($this->_data) < self::PROCESS_STEP) {
+        $processData = $this->_helperProcess->getProcessData( $revisionId, self::PROCESS_STEP );
+
+        $csvArray = array_merge([$processData['headers']], $processData['data']);
+        $errors = $this->createImportData($csvArray);
+
+        if($errors){
+          $this->cleanImportFile();
+        }
+
+        $this->runImport(true);
+        $logMessage   = __('Completed import process for %1 products', count($processData['data']));
+        $this->_helperIndexer->reindexAll();
+        $complete  = true;
+
+
+        $startProcess = false;
+      }
 
       return [[
         'status' => 'ok',
         'type'   => $data['extra']['type'],
         'sheet_id' => $data['sheet_id'],
-        'revisionId' => $this->getRevisiionUID(),
-        'total_saved' => 0,
+        'revisionId' => $revisionId,
+        'total_saved' => $complete ? count($this->_data) : 0,
         'total' => count($this->_data),
         'reindex' => 0,
-        'start_process' => true,
+        'start_process' => $startProcess,
         'not_found_sku' => [],
-        'log_errors' => $this->getErrors()
+        'log_errors' => $this->getErrors(),
+        'error_rows' => $this->_errorRows,
+        'log_message' => !empty($logMessage) ? [$logMessage] : null
       ]];
     }catch(\Exception $e) {
 
@@ -140,7 +176,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
   public function process() {
 
     try {
-
+      $logMessage   = '';
       $postValues   = $this->request->getContent();
       $data         = \Zend_Json::decode($postValues);
 
@@ -153,113 +189,93 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
             'error' => $message
         ]];
       }
-      $this->_revisionUid = $revisionId;
-      $lockData = $this->readLockFileData($this->_revisionUid);
 
-      if($lockData['status'] == self::STATUS_BEGIN) {
+      $processData = $this->_helperProcess->getProcessData( $revisionId, self::PROCESS_STEP );
+      $step = !empty($processData['step']) ? $processData['step'] : 0;
 
-        $this->createImporterFile($revisionId);
-        $lockData['status']  = self::STATUS_IMPORT_FILE_CREATED;
+      $this->currentStep($step);
+      $reindexing = 0;
 
-        $this->updateLockFile($lockData);
+      if(empty($processData['data']) && $processData['total'] <= $step && empty($processData['reindex'])) { //reindex required
 
-        $this->validateImportFile();
+        $logMessage   = __('Reindexing');
+        $reindexing = \Develodesign\Easymanage\Model\SaveProducts::REINDEX_RUN;
+        $this->_helperIndexer->reindexAll();
+        $this->_helperProcess->updateLockFile($revisionId, ['reindex' => true]);
 
-        if(!count($this->getErrors())) {
-          $logMessage = [  __('Import file created!') ];
-        }else{
-          $logMessage = null;
+      }else if(!empty($processData['reindex'])) {
+
+        $logMessage   = __('Done');
+        $reindexing = \Develodesign\Easymanage\Model\SaveProducts::REINDEX_COMPLETE;
+        $this->_helperProcess->removeWorkingFiles($revisionId);
+
+      }else if(!empty($processData['data']) && empty($processData['status'])){
+        if($this->_isDebug) {
+          $start_time = microtime(true);
+        }
+        $step  += count($processData['data']);
+
+        $csvArray = array_merge([$processData['headers']], $processData['data']);
+        $errors = $this->createImportData($csvArray);
+        $lockDataUpdate = [
+          'step' => $step
+        ];
+        if($errors){
+          $this->cleanImportFile();
+        }
+        $logMessage   = __('File created %1-%2', $processData['step'], $step);
+
+        $lockDataUpdate['status'] = self::READY_FOR_IMPORT;
+        $this->_helperProcess->updateLockFile($revisionId, $lockDataUpdate);
+
+        if($this->_isDebug) {
+          $end_time = microtime(true);
+          $this->logger-> notice($logMessage . ' complete time ' . ($end_time - $start_time));
         }
 
-        return [[
-          'status' => 'ok',
-          'revisionId' => $revisionId,
-          'total_saved' => 0,
-          'total' => $lockData['total'],
-          'reindex' => 0,
-          'log_message' => $logMessage,
-          'not_found_sku' => [],
-          'error' => (count($this->getErrors()) || count($this->_errorRows)) ? __('Invalid product data') : null,
-          'log_errors' => $this->getErrors(),
-          'error_rows' => $this->_errorRows
-        ]];
-
-      }
-
-      if($lockData['status']  == self::STATUS_IMPORT_FILE_CREATED) {
-
-        $this->_magentoImportModel->setData([
-            'entity' => self::ENTITY,
-            'behavior' => self::BEHAVIOR,
-            'validation_strategy' => self::VALIDATION_CONTINUE_ANYWAY,
-            '_import_field_separator' => self::FIELD_FIELD_SEPARATOR,
-            '_import_multiple_value_separator' => self::FIELD_FIELD_MULTIPLE_VALUE_SEPARATOR
-
-        ]);
-        $this->_magentoImportModel->importSource();
-
-        $errorAggregator = $this->_magentoImportModel
-                ->getErrorAggregator();
-
-        $errors = $errorAggregator->getAllErrors();
-
-        if ($errors && count($errors)) {
-            $this->_processErrors($this->_magentoImportModel, $errorAggregator);
+      }else if(!empty($processData['data']) && $processData['status'] == self::READY_FOR_IMPORT){
+        if($this->_isDebug) {
+          $start_time = microtime(true);
         }
+        $this->runImport();
+
         $totalSaved = $this->_magentoImportModel->getProcessedEntitiesCount();
+        $logMessage   = __('Import complete %1-%2', ($processData['step'] - self::PROCESS_STEP), $processData['step']);
 
-        $logMessage = [  __('Import done!'), __('Total imported items %1', $totalSaved) ];
+        $this->_helperProcess->updateLockFile($revisionId, [
+          'status' => ''
+        ]);
+        if($this->_isDebug) {
+          $end_time = microtime(true);
+          $this->logger-> notice($logMessage . ' complete time ' . ($end_time - $start_time));
+        }
 
-        $lockData['status']  = self::STATUS_IMPORT_DONE;
-        $this->updateLockFile($lockData);
-
+      }else{
+        $errorMessage = 'Unknown process data revision ID: ' . $revisionId;
         return [[
-          'status' => 'ok',
-          'revisionId' => $revisionId,
-          'total_saved' => $totalSaved,
-          'total' => $lockData['total'],
-          'reindex' => \Develodesign\Easymanage\Model\SaveProducts::REINDEX_RUN,
-          'log_message' => $logMessage,
-          'not_found_sku' => [],
-          'log_errors' => $this->getErrors(),
-          'error_rows' => $this->_errorRows
+          'error' => $errorMessage
         ]];
-
       }
 
-      if($lockData['status'] == self::STATUS_IMPORT_DONE) {
-
-        $lockData['status']  = self::STATUS_STATUS_REINDEX;
-        $this->updateLockFile($lockData);
-
-        $this->_helperIndexer->reindexImporterAll();
-
-
-        return [[
-          'status' => 'ok',
-          'revisionId' => $revisionId,
-          'total_saved' => $lockData['total'],
-          'total' => $lockData['total'],
-          'reindex' => \Develodesign\Easymanage\Model\SaveProducts::REINDEX_COMPLETE,
-          'log_message' => null,
-          'not_found_sku' => [],
-          'log_errors' => $this->getErrors(),
-          'error_rows' => $this->_errorRows
-        ]];
-
+      /* start re-index */
+      if($step >= $processData['total'] && empty($processData['reindex'])) {
+        $reindexing = \Develodesign\Easymanage\Model\SaveProducts::REINDEX_RUN;
+        $this->_helperIndexer->reindexAll();
+        $this->_helperProcess->updateLockFile($revisionId, ['reindex' => true]);
       }
 
-      //wrong status!
+
       return [[
-        'status' => 'ok',
-        'revisionId' => $revisionId,
-        'total_saved' => $lockData['total'],
-        'total' => $lockData['total'],
-        'reindex' => \Develodesign\Easymanage\Model\SaveProducts::REINDEX_COMPLETE,
+        'status'        => 'ok',
+        'revisionId'    => $revisionId,
+        'total_saved'   => !empty($step) ? $step : $processData['total'],
+        'total'         => $processData['total'],
+        'reindex'       => $reindexing,
         'not_found_sku' => [],
-        'errors' => []
+        'log_errors'  => $this->getErrors(),
+        'log_message' => !is_array($logMessage) ? [ $logMessage ] : $logMessage,
+        'error_rows'  => $this->_errorRows
       ]];
-      //end debug!
 
     } catch(\Exception $e) {
 
@@ -319,6 +335,44 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
       ];
   }
 
+  protected function runImport($notValidate = false)
+  {
+    if($this->_loadedCSV && count($this->_loadedCSV) == 1) {
+      return;
+    }
+    $this->_magentoImportModel->setData([
+        'entity' => self::ENTITY,
+        'behavior' => self::BEHAVIOR,
+        'validation_strategy' => self::VALIDATION_CONTINUE_ANYWAY,
+        '_import_field_separator' => self::FIELD_FIELD_SEPARATOR,
+        '_import_multiple_value_separator' => self::FIELD_FIELD_MULTIPLE_VALUE_SEPARATOR
+
+    ]);
+    $this->_magentoImportModel->importSource();
+
+    if(!$notValidate) {
+
+      $errorAggregator = $this->_magentoImportModel
+              ->getErrorAggregator();
+
+      $errors = $errorAggregator->getAllErrors();
+
+      if ($errors && count($errors)) {
+          $this->_processErrors($this->_magentoImportModel, $errorAggregator);
+      }
+
+    }
+
+    if($this->_isDebug) {
+      $this->logger-> notice( 'Import done' );
+    }
+  }
+
+  protected function currentStep($step)
+  {
+    $this->_step = $step;
+  }
+
   protected function getCategoryIdsFilter($postValuesArr) {
     $categoriesFilterOld = !empty($postValuesArr['category']) ? $postValuesArr['category'] : null;
     if(!$categoriesFilterOld) {
@@ -355,6 +409,54 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     return $store;
   }
 
+  protected function createImportData($csvArray, $noValidation = false)
+  {
+    $this->createDataFile($csvArray);
+    if(!$noValidation) {
+      return $this->validateImportFile();
+    }
+  }
+
+  protected function cleanImportFile()
+  {
+    $csvArray  = $this->getLoadedCsvArray();
+    $newArray  = [];
+    foreach($csvArray as $count => $row) {
+      if($count == 0) {
+        $newArray[] = $row;
+        continue; //header
+      }
+
+      $realRowNum = end($row);
+      if(in_array($realRowNum, $this->_errorRows)) {
+        continue;
+      }
+      $newArray[] = $row;
+    }
+
+    $this->_loadedCSV = $newArray;
+    $this->createImportData($newArray, true);
+  }
+
+  protected function getImportFilePath()
+  {
+    return $importFilePath = $this->_magentoImportModel->getWorkingDir() . self::IMPORT_FILE . '.csv';
+  }
+
+  protected function createDataFile($csvArray)
+  {
+    $importFilePath = $this->getImportFilePath();
+    if(!is_dir(dirname($importFilePath))) {
+      mkdir(dirname($importFilePath), \Develodesign\Easymanage\Helper\Process::CHMOD_FOLDER, true);
+    }
+
+    $file = fopen($importFilePath, "w");
+
+    foreach ($csvArray as $line){
+        fputcsv($file, $line);
+    }
+    fclose($file);
+  }
 
   protected function validateImportFile() {
 
@@ -396,8 +498,16 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
         $errors = $errorAggregator->getRowsGroupedByErrorCode([], [AbstractEntity::ERROR_CODE_SYSTEM_EXCEPTION]);
         foreach ($errors as $errorCode => $rows) {
             $this->_errorRows = array_merge($this->_errorRows, $rows);
+
+            foreach($rows as $index => $row) {
+              $realNumber   = $this->getRealRowNumber( $row );
+              $rows[$index] = is_numeric($realNumber) ? $realNumber + 1 : $realNumber;
+            }
+
             $errorMessage .= $errorCode . ' ' . __('in row(s):') . ' ' . implode(', ', $rows) . '<br>';
         }
+
+        $this->updateErrorsRowsNumbers();
         //$this->_totalErrors += $errorAggregator->getErrorsCount();
         $errorMessage .= __(
                     'Checked rows: %1, checked entities: %2, invalid rows: %3, total errors: %4',
@@ -408,86 +518,34 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
                 );
 
       $this->setError($errorMessage);
-
-      if($this->_revisionUid) {
-        $this->removeWorkingFile();
-        $this->removeRevisionFile();
-      }
+      return $errorMessage;
   }
 
-  protected function removeWorkingFile() {
-    $wokingFolder = $this->getWorkingFolder();
-    $lockFileName = $this->getLockingFileName($this->_revisionUid);
-
-    unlink($wokingFolder . DIRECTORY_SEPARATOR . $lockFileName);
-  }
-
-  protected function removeRevisionFile() {
-    $folder = $this->_saveModel->getRevisionFolder();
-    $filePath     = $folder . DIRECTORY_SEPARATOR . $this->_revisionUid;
-
-    unlink( $filePath );
-  }
-
-  protected function createImporterFile($revisionId) {
-    $folder = $this->_saveModel->getRevisionFolder();
-    $filePath     = $folder . DIRECTORY_SEPARATOR . $revisionId;
-    $importFilePath = $this->_magentoImportModel->getWorkingDir() . self::IMPORT_FILE . '.csv';
-    if(!is_dir(dirname($importFilePath))) {
-      mkdir(dirname($importFilePath), self::CHMOD_FOLDER, true);
+  protected function updateErrorsRowsNumbers()
+  {
+    foreach($this->_errorRows as $key => $rowNum){
+      $this->_errorRows[$key] = $this->getRealRowNumber( $rowNum );
     }
-    copy($filePath, $importFilePath);
   }
 
-  protected function updateLockFile($data = null) {
-    $data = $data ? $data : [
-      'status' => 0,
-      'step' => 0,
-      'total' => count($this->_data)
-    ];
-    $wokingFolder = $this->getWorkingFolder();
-    $lockFileName = $this->getLockingFileName($this->_revisionUid);
-    $file = fopen($wokingFolder . DIRECTORY_SEPARATOR . $lockFileName, "w");
-    $saveString = \Zend_Json::encode($data);
-    fwrite($file, $saveString);
-    fclose($file);
-    return true;
+  protected function getRealRowNumber($rowNum)
+  {
+    $loadedCSV = $this->getLoadedCsvArray();
+    $errorRow  = !empty($loadedCSV[$rowNum]) ? $loadedCSV[$rowNum] : null;
+
+    return $errorRow ? end($errorRow) : $rowNum;
   }
 
-  protected function readLockFileData($revisionId) {
-    $wokingFolder = $this->getWorkingFolder();
-    $lockFileName = $this->getLockingFileName($revisionId);
-    $fullPath = $wokingFolder . DIRECTORY_SEPARATOR . $lockFileName;
-    if(!is_file($fullPath)) {
-      return;
-    }
-    $file = fopen($fullPath, "r");
-    $contents = fread($file, filesize($fullPath));
-    fclose($file);
-    return \Zend_Json::decode( $contents );
-  }
-
-  protected function getWorkingFolder() {
-    return $this->_saveModel->getWorkingFolder();
-  }
-
-  protected function getLockingFileName($revisionId) {
-    return $this->_saveModel->getLockingFileName($revisionId);
-  }
-
-  protected function generateUIDFile() {
-    $uniqId = $this->getRevisiionUID();
-    $folder = $this->_saveModel->getRevisionFolder();
-
-    $file = fopen($folder . DIRECTORY_SEPARATOR . $uniqId, "w");
-
-    fputcsv($file, $this->_headers);
-
-    foreach ($this->_data as $line){
-        fputcsv($file, $line);
+  protected function getLoadedCsvArray()
+  {
+    if($this->_loadedCSV) {
+      return $this->_loadedCSV;
     }
 
-    fclose($file);
+    $importFile = $this->getImportFilePath();
+    $this->_loadedCSV = array_map('str_getcsv', file($importFile));
+
+    return $this->_loadedCSV;
   }
 
   protected function prepareData($data) {
@@ -640,17 +698,13 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
   protected function prepareHeaders($data) {
     $headers = [];
     foreach($data['headers'] as $_header) {
-      $headers[] = $_header['name'];
+      if(is_array($_header)) {
+        $headers[] = $_header['name'];
+      }else{
+        $headers[] = $_header;
+      }
     }
     $this->_headers = $headers;
-  }
-
-  protected function getRevisiionUID() {
-    if($this->_revisionUid) {
-      return $this->_revisionUid;
-    }
-    $this->_revisionUid = uniqid();
-    return $this->_revisionUid;
   }
 
   protected function setError($error) {
