@@ -401,7 +401,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
           $row[] = $this->_attributeHelper->getOptionValues($header['name'], $value);
           continue;
         }
-        $row[] = $value;
+        $row[] = preg_replace( "/\r|\n/", "", $value);
       }
 
       $output[] = $row;

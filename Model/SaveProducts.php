@@ -19,7 +19,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
 
   protected $_notFoundSkus = [];
 
-  protected $_isDebug = true;
+  protected $_isDebug = false;
 
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
@@ -43,7 +43,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       $data         = \Zend_Json::decode($postValues);
 
       $revisionId   = !empty($data['revison_id']) ? $data['revison_id'] : null;
-
+      $sheetId      = !empty($data['sheet_id']) ? $data['sheet_id'] : null;
       if(!$revisionId) {
         $errorMessage = 'Updater process revision ID not found: ' . $revisionId;
         $this->logger->debug($errorMessage);
@@ -101,6 +101,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
         'total' => $processData['total'],
         'reindex' => $reindexing,
         'not_found_sku' => $this->_notFoundSkus,
+        'sheet_id' => $sheetId,
         'log_errors' => $this->_helperProducts->getErrors()
       ]];
 
@@ -257,7 +258,9 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   protected function getProductSkuFromRow($row, $headers)
   {
     $index = $this->findSkuIndex($headers);
-    return !empty($row[$index]) ? $row[$index] : null;
+    $sku = !empty($row[$index]) ? $row[$index] : null;
+
+    return $sku;
   }
 
   protected function findSkuIndex($headers)

@@ -48,7 +48,7 @@ class Process extends \Magento\Framework\App\Helper\AbstractHelper
         $this->setError( $errorMessage );
         return;
       };
-      $step     = $lockData['step'];
+      $step     = !empty($lockData['step']) ? $lockData['step'] : 0;
       $saveData = $this->readProcessFile($revisionId);
 
       if(count($saveData) <= $step) {
