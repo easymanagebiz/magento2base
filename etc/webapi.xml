@@ -134,10 +134,10 @@
 
     <route url="/V1/easymanage/importerfetch" method="POST">
         <service class="Develodesign\Easymanage\Api\ImporterInterface" method="fetch"/>
-        <!-- resources>
+        <resources>
             <resource ref="Magento_Catalog::catalog"/>
 
-        </resources -->
+        </resources>
     </route>
 
     <!--
@@ -148,6 +148,9 @@
 
     <route url="/V1/easymanage/test" method="GET">
         <service class="Develodesign\Easymanage\Api\TestInterface" method="test"/>
+        <resources>
+            <resource ref="anonymous"/>
+        </resources>
     </route>
 
     <!-- trigger -->
@@ -163,9 +166,9 @@
 
     <route url="/V1/easymanage/attributes" method="POST">
         <service class="Develodesign\Easymanage\Api\AttributesInterface" method="all"/>
-        <!-- resources>
+        <resources>
             <resource ref="Magento_Catalog::catalog"/>
-        </resources -->
+        </resources>
     </route>
 
     <!-- custom addons -->

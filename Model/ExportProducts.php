@@ -10,10 +10,12 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
   protected $_collection;
 
   protected $_helperProducts;
+  protected $_eventManager;
 
   public function __construct(
     \Magento\Framework\App\Request\Http $request,
     \Magento\Catalog\Model\ResourceModel\Product\CollectionFactory $productCollection,
+    \Magento\Framework\Event\ManagerInterface $eventManager,
     //\Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $productCollection,
     \Develodesign\Easymanage\Helper\Products $helperProducts
   ) {
@@ -22,6 +24,7 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
     $this->productCollection = $productCollection;
 
     $this->_helperProducts = $helperProducts;
+    $this->_eventManager   = $eventManager;
   }
 
   public function search() {
@@ -29,6 +32,15 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
     $postValuesArr = \Zend_Json::decode($postValues);
 
     $dataProducts = $this->getSearchProducts($postValuesArr);
+
+    $objectDataProducts = new \Magento\Framework\DataObject();
+
+    $objectDataProducts->setDataProducts($dataProducts);
+    $objectDataProducts->setHeaderColumns($this->_helperProducts->prepareHeaderIndexes($postValuesArr['headers']));
+
+    $this->_eventManager->dispatch('dd_easymanage_collect_data_products', ['object' => $objectDataProducts]);
+
+    $dataProducts = $objectDataProducts->getDataProducts();
 
     return [
       'data'=> [
@@ -44,6 +56,15 @@ class ExportProducts implements \Develodesign\Easymanage\Api\ExportProductsInter
     $postValuesArr = \Zend_Json::decode($postValues);
 
     $dataProducts = $this->getDataProducts($postValuesArr);
+
+    $objectDataProducts = new \Magento\Framework\DataObject();
+
+    $objectDataProducts->setDataProducts($dataProducts);
+    $objectDataProducts->setHeaderColumns($this->_helperProducts->prepareHeaderIndexes($postValuesArr['headers']));
+
+    $this->_eventManager->dispatch('dd_easymanage_collect_data_products', ['object' => $objectDataProducts]);
+
+    $dataProducts = $objectDataProducts->getDataProducts();
 
     return [
       'data'=> [

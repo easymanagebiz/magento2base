@@ -317,8 +317,8 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
     $this->_exportProducts->setPage($page);
     $data = $this->_exportProducts->_export();
     $dataProducts = $this->_helperProducts
-      ->setCollection($data['collection'])
-      ->collectData(isset($postValuesArr['headers']) ? $postValuesArr['headers'] : $this->_defualtExportHeaders);
+      ->setDataArray($data['data_array'])
+      ->collectFromArray(isset($postValuesArr['headers']) ? $postValuesArr['headers'] : $this->_defualtExportHeaders);
 
       return [
         'data'=> [

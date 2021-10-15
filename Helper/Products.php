@@ -7,6 +7,8 @@ use \Magento\Store\Model\Store;
 class Products extends \Magento\Framework\App\Helper\AbstractHelper
 {
 
+  const MAX_ERRORS_COUNT = 20;
+
   protected $_collection;
   protected $resource;
   protected $_stockRegistry;
@@ -25,8 +27,12 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
   protected $_errors = [];
   protected $_errorsAttrCode = [];
 
+  protected $_dataArray = [];
+
   protected $notAttribute = [
-    'qty', 'in_stock'
+    'qty', 'in_stock',
+    'mageworx_option_templates',
+    'options_clean'
   ];
 
   protected $specialProcessData = [
@@ -181,8 +187,15 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     return true;
   }
 
-  protected function addError($errText) {
+  public function addError($errText) {
+    if(count($this->_errors) > self::MAX_ERRORS_COUNT) {
+      return;
+    }
     $this->_errors[] = $errText;
+  }
+
+  public function addErrors($errArr) {
+    $this->_errors[] = array_merge($this->_errors, $errArr);
   }
 
   public function getErrors() {
@@ -340,6 +353,19 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     return $this->_collection;
   }
 
+  public function prepareHeaderIndexes($headers)
+  {
+    $outNames = [];
+    foreach($headers as $i => $header) {
+      if(empty($header['name'])) {
+        continue;
+      }
+      $outNames[$header['name']] = $i;
+    }
+
+    return $outNames;
+  }
+
   protected function addCustomDataToCollection($name) {
     switch($name) {
       case 'qty':
@@ -373,6 +399,42 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       $this->_isInventoryAdded = true;
       break;
     }
+  }
+
+  public function collectFromArray($headers, $storeId = '')
+  {
+    if(!count($this->_dataArray)) {
+      return [];
+    }
+
+    $storeCode = $this->getStoreCode($storeId);
+
+    $output = [];
+    foreach($this->_dataArray as $productDataArray) {
+      $row = [];
+
+      foreach($headers as $header) {
+
+        if($header['name'] == 'store_code') {
+          $row[] = $storeCode;
+          continue;
+        }
+
+        $value = isset($productDataArray[$header['name']]) ? $productDataArray[$header['name']] : '';
+        if(in_array($header['name'], $this->specialProcessData)) {
+          $value = $this->specialProcessData($header['name'], $value);
+        }
+        if($this->_attributeHelper->getIsOptionAttribute($header['name']) && $header['name'] != 'visibility') {
+          $row[] = $this->_attributeHelper->getOptionValues($header['name'], $value);
+          continue;
+        }
+        $row[] = preg_replace( "/\r|\n/", "", $value);
+      }
+
+      $output[] = $row;
+    }
+
+    return $output;
   }
 
   public function collectData($headers, $storeId = '') {
@@ -439,11 +501,18 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       break;
 
       case 'price':
+        if($value == '') {
+          $value = 0;
+        }
+        $value = floatval($value);
         return number_format( $value, 2, "." ,"" ) ;
       break;
 
       case 'special_price':
-        $value = $value ? $value : 0;
+        if($value == '') {
+          $value = 0;
+        }
+        $value = floatval($value);
         return number_format( $value, 2, "." ,"" ) ;
       break;
 
@@ -458,5 +527,15 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
 
   public function getCollection() {
     return $this->_collection;
+  }
+
+  public function setDataArray($dataArray = [])
+  {
+    $this->_dataArray = $dataArray;
+    return $this;
+  }
+
+  public function getDataArray() {
+    return $this->_dataArray;
   }
 }

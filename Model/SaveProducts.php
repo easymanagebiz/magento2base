@@ -16,6 +16,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
   protected $_helperIndexer;
   protected $_helperProcess;
   protected $logger;
+  protected $_eventManager;
 
   protected $_notFoundSkus = [];
 
@@ -25,6 +26,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     \Magento\Framework\App\Request\Http $request,
     \Develodesign\Easymanage\Helper\Indexer $helperIndexer,
     \Develodesign\Easymanage\Helper\Process $helperProcess,
+    \Magento\Framework\Event\ManagerInterface $eventManager,
     \Develodesign\Easymanage\Helper\Products $helperProducts,
     \Psr\Log\LoggerInterface $logger
   ) {
@@ -34,6 +36,7 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     $this->_helperProducts = $helperProducts;
     $this->_helperIndexer = $helperIndexer;
     $this->_helperProcess = $helperProcess;
+    $this->_eventManager   = $eventManager;
   }
 
   public function process() {
@@ -209,6 +212,17 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       $this->logger-> notice('Save product time ' . ($end_time - $start_time) . ' s - SKU: ' . $sku);
     }
 
+    $objectDataProduct = new \Magento\Framework\DataObject();
+
+    $objectDataProduct->setProductSku($sku);
+    $objectDataProduct->setDataRow($row);
+    $objectDataProduct->setHeaders($headers);
+
+    $this->_eventManager->dispatch('dd_easymanage_save_row_product', ['object' => $objectDataProduct]);
+
+    if($error = $objectDataProduct->getError()) {
+      $this->_helperProducts->addError($error);
+    }
     return true; //flag save done
   }
 

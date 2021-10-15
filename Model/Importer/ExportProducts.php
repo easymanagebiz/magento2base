@@ -1,9 +1,11 @@
 <?php
 
+/* depricated */
+
 namespace Develodesign\Easymanage\Model\Importer;
 
 use \Magento\Store\Model\Store;
- 
+
 class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
 {
 
@@ -14,6 +16,18 @@ class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
   protected $_store;
 
   protected $_categoryIds = [];
+
+  protected $_fakeWriter;
+
+  public function setFakeWriter($writeClass)
+  {
+    $this->_fakeWriter = $writeClass;
+  }
+
+  public function getWriter()
+  {
+    return $this->_fakeWriter;
+  }
 
   public function _export()
   {
@@ -45,19 +59,21 @@ class ExportProducts extends \Magento\CatalogImportExport\Model\Export\Product
     $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
     $collection = $objectManager->create('Magento\Framework\Data\Collection');
 
-    foreach ($exportData as $dataRow) {
-      $varienObject = new \Magento\Framework\DataObject();
-      $collectionRow = [];
+    $count = 0;
+    $dataOut = [];
+    foreach ($exportData as $key => $dataRow) {
       $dataRow = $this->_customFieldsMapping($dataRow);
+      if(isset($dataRow['store_view_code']) && $dataRow['store_view_code'] == Store::DEFAULT_STORE_ID) {
+        continue;
+      }
 
-      $dataRow = $this->updateWithImportData($dataRow) ;
-      $varienObject->setData($dataRow);
-      $collection->addItem($varienObject);
+      $dataOut[$count] = $dataRow;
+      $count++;
     }
 
     return [
       'headers' => $headers,
-      'collection' => $collection,
+      'data_array' => $dataOut,
       'total' => $this->getTotal(),
       'limit' => $this->__getItemsPerPage()
     ];
