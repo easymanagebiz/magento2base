@@ -199,13 +199,20 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
       return;
     }
 
+
+    $this->_eventManager->dispatch('catalog_product_save_before', [
+      'product' => $currentProduct,
+      'data_object' => $currentProduct,
+      'object' => $currentProduct
+    ]);
+
     $currentRow = $this->collectProductData($currentProduct, $headers);
     $difference  = array_diff_assoc($row, $currentRow);
 
     $dataToSave = $this->getNewSaveRow($currentRow, $difference);
 
     $sku = $this->getProductSkuFromRow($row, $headers);
-    $this->_helperProducts->updateProduct($sku, $row, $headers);
+    $updatedProduct = $this->_helperProducts->updateProduct($sku, $row, $headers);
 
     if($this->_isDebug) {
       $end_time = microtime(true);
@@ -219,6 +226,13 @@ class SaveProducts implements \Develodesign\Easymanage\Api\SaveProductsInterface
     $objectDataProduct->setHeaders($headers);
 
     $this->_eventManager->dispatch('dd_easymanage_save_row_product', ['object' => $objectDataProduct]);
+
+    $this->_eventManager->dispatch('catalog_product_save_after', [
+      'product' => $updatedProduct,
+      'data_object' => $updatedProduct,
+      'object' => $updatedProduct
+    ]);
+
 
     if($error = $objectDataProduct->getError()) {
       $this->_helperProducts->addError($error);

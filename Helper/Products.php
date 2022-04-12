@@ -83,18 +83,26 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
     try  {
 
       if(!$useStore) {
-        return  $this->_productRepository->get($sku);
+        return  $this->_updateWithWebsiteIds($this->_productRepository->get($sku));
       }
       $storeId = $this->getStoreIdFromCode($row, $fields);
       if($storeId && $storeId != Store::DEFAULT_STORE_ID) {
-        return $this->_productRepository->get($sku, false, $storeId);
+        return $this->_updateWithWebsiteIds($this->_productRepository->get($sku, false, $storeId));
       }
-
-      return $this->_productRepository->get($sku);
+      return $this->_updateWithWebsiteIds($this->_productRepository->get($sku));
 
     }catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
         return null; //no product found
     }
+  }
+
+  /* fix for magento 2.4 */
+  protected function _updateWithWebsiteIds($product)
+  {
+    if(!$product->getOrigData('website_ids')) {
+      $product->setOrigData('website_ids', $product->getWebsiteIds());
+    }
+    return $product;
   }
 
   public function updateProduct($sku, $row, $fields) {
@@ -184,7 +192,7 @@ class Products extends \Magento\Framework\App\Helper\AbstractHelper
       $numField++;
     }
 
-    return true;
+    return $product;
   }
 
   public function addError($errText) {
