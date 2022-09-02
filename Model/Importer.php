@@ -447,7 +447,7 @@ class Importer implements \Develodesign\Easymanage\Api\ImporterInterface{
   {
     $importFilePath = $this->getImportFilePath();
     if(!is_dir(dirname($importFilePath))) {
-      mkdir(dirname($importFilePath), \Develodesign\Easymanage\Helper\Process::CHMOD_FOLDER, true);
+      mkdir(dirname($importFilePath), \Develodesign\Easymanage\Helper\Process::CHMOD_DIR, true);
     }
 
     $file = fopen($importFilePath, "w");
